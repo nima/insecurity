@@ -1,7 +1,7 @@
 include make.d/Makefile.header
 
 AIS_NAME    := jd-gui
-AIS_VERSION := 0.3.3
+AIS_VERSION := 0.3.5
 AIS_BIN     := jd-gui
 AIS_CHECK   := readme.txt
 

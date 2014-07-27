@@ -55,13 +55,13 @@ define aquire
     if [ $(AIS_SCM) == git ]; then\
         test -d $(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM)\
         && cd $(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM)\
-        && git pull\
-        || git clone $(AIS_SCM_URI) $(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM);\
+        && git pull -q\
+        || git clone -q $(AIS_SCM_URI) $(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM);\
     elif [ $(AIS_SCM) == svn ]; then\
         test -d $(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM)\
         && cd $(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM)\
-        && svn up\
-        || svn co $(AIS_SCM_URI) $(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM);\
+        && svn up -q\
+        || svn co -q $(AIS_SCM_URI) $(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM);\
     fi
 endef
 endif
@@ -109,6 +109,9 @@ endif
 
 ifeq ($(AIS_SCM),)
 AIS_SRC_FOUND := $(strip $(foreach s,$(AIS_SRC_TYPES),$(wildcard $(TARBALLZ)/$(AIS_NAME)-$(AIS_VERSION).$s)))
+ifeq ($(AIS_SRC_FOUND),)
+$(error Cannot find $(TARBALLZ)/$(AIS_NAME)-$(AIS_VERSION).*)
+endif
 else
 AIS_SRC_FOUND := build/$(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM)
 $(AIS_SRC_FOUND):

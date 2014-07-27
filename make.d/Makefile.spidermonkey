@@ -1,12 +1,10 @@
 include make.d/Makefile.header
 
-AIS_NAME       := js
-AIS_VERSION    := 1.7.0
-AIS_BIN        := js jscpucfg jskwgen
+AIS_NAME       := mozjs
+AIS_VERSION    := 24.2.0
+AIS_BIN        := js24
 AIS_CHECK      := README
-AIS_SRC_SUBDIR := src
-AIS_BIN_SUBDIR := src/$(UNAME)_All_DBG.OBJ/
-
-AIS_MAKEFILE   := Makefile.ref
+AIS_SRC_SUBDIR := js/src
+AIS_BIN_SUBDIR := js/src/shell
 
 include make.d/Makefile.footer

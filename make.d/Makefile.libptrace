@@ -23,4 +23,4 @@ AIS_SCM_URI           := git://libptrace.git.sourceforge.net/gitroot/libptrace/l
 include make.d/Makefile.footer
 
 prebuild:
-	cd build/$(AIS_NAME)-$(AIS_VERSION) && ./build.sh
+	@cd build/$(AIS_NAME)-$(AIS_VERSION) && ./build.sh

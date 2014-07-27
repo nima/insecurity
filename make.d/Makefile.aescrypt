@@ -1,8 +1,10 @@
 include make.d/Makefile.header
 
 AIS_NAME    := aescrypt
-AIS_VERSION := 305
+AIS_VERSION := 3.0.9
 AIS_BIN     := aescrypt
 AIS_CHECK   := Readme.txt
+AIS_SRC_SUBDIR  := src
+AIS_BIN_SUBDIR  := src
 
 include make.d/Makefile.footer

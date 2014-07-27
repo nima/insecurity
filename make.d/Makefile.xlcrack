@@ -1,8 +1,8 @@
 include make.d/Makefile.header
 
-AIS_NAME    := darkhttpd
-AIS_VERSION := 1.10
-AIS_BIN     := darkhttpd
+AIS_NAME    := xlcrack
+AIS_VERSION := 1.2
+AIS_BIN     := xlcrack
 AIS_CHECK   := README
 
 include make.d/Makefile.footer

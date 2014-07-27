@@ -1,5 +1,6 @@
 include make.d/Makefile.header
 
+AIS_HOME    := http://www.unix-ag.uni-kl.de/~conrad/krypto/pkcrack/download1.html
 AIS_NAME    := pkcrack
 AIS_VERSION := 1.2.2
 AIS_BIN     := extract findkey makekey pkcrack zipdecrypt

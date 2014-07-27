@@ -1,7 +1,8 @@
 include make.d/Makefile.header
 
+AIS_HOME    := http://www.cirt.net/Nikto2
 AIS_NAME    := nikto
-AIS_VERSION := 2.1.4
+AIS_VERSION := 2.1.5
 AIS_CHECK   := nikto.conf
 AIS_BIN     := nikto
 AIS_CLASS   := JAVA

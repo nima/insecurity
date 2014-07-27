@@ -1,9 +1,12 @@
-SMOKED :=
-BAKE   :=
-BREWED :=
-LIBS   :=
-HEADS  :=
-DATA   := GeoLiteCity.dat pc-au.csv
+SMOKED := #. Executables that are expected to exist already
+BAKE   := #. Executables that will be compiled from local sources
+BREWED := #. Executables that will be compiled from remote sources
+LIBS   := #. Shared objects that that are expected to exist
+HEADS  := #. Header files
+DATA   := #. Data files
+
+HEADS  += libdasm.h gcrypt.h
+DATA   += GeoLiteCity.dat
 
 #-------------------------------------------------------------------------------
 #. System Monitor/Alterer/Tracer
@@ -15,14 +18,14 @@ BAKE   += atomicles
 SMOKED += hping hping2 hping3 traceroute dnstracer dig geoiplookup
 SMOKED += tcpdump nmap nping ngrep wireshark ettercap dsniff whois
 SMOKED += netwatch arpwatch snmpwalk tshark ldapsearch firewalk
-SMOKED += ncftp smbclient wget
-BAKE   += tcptraceroute dmitry
-BREWED += qcli google-dork fierce
+SMOKED += ncftp smbclient wget tcptraceroute
+BAKE   += dmitry
+BREWED += qcli fierce #google-dork
 BREWED += geoip postal myip
 #. Network Intruders
-BAKE   += sock hydra isic scnc
-SMOKED += nc scapy socat arping
-BREWED += connect
+BAKE   += sock hydra #isic scnc
+SMOKED += nc scapy socat arping tcpspy
+#BREWED += connect
 #. Web Scanner/Proxy/Utilities
 BAKE   += belch #. Non-Free Software
 BAKE   += dirbuster nikto
@@ -31,7 +34,7 @@ BREWED += lbd urlencode
 SMOKED += idal idaq #. Non-Free
 SMOKED += objdump
 BREWED += elf-entrypoint
-BAKE   += eresi
+#BAKE   += eresi
 #. Decompilers
 BAKE   += jd-gui
 #. Binary/Hex Manipulation
@@ -52,7 +55,6 @@ SMOKED += python python2 perl mono java rhino php
 BAKE   += spidermonkey
 #. Coding
 SMOKED += diff patch indent
-SMOKED += wing #. Non-Free
 #. Compression
 SMOKED += rar unrar 7z zip unzip tar bzip2 gzip uncompress gunzip bunzip2
 #. Exploit/Malware Development
@@ -64,31 +66,32 @@ BREWED += shell-asciihex2bin shell-elf2asciihex shell-elf2cstr
 BREWED += syscall-resolve
 BREWED += esp hexection chk-endian
 BREWED += hexquash
-BAKE   += libdasm libptrace
+BAKE   += libdasm #libptrace
 #. Crackers
 SMOKED += fcrackzip john aircrack-ng
 SMOKED += ncrack ophcrack cmospwd cowpatty
-SMOKED += medusa xlcrack
-BAKE   += ike pkcrack
+SMOKED += medusa
+BAKE   += ike pkcrack xlcrack
 BREWED += sshcrack
 BREWED += cisco-decrypt ciscocrack
 #. Crypto
 SMOKED += gpg openssl
-BAKE   += ent aescrypt
+BAKE   += aescrypt #ent
 #. Fuzzing
 BAKE   += jmeter zzuf
 #. SCM
 SMOKED += git svn cvs
 #. GRSecurity, PaX
-BAKE   += gradm paxctl pax-utils paxtest
-BREWED += paxit paxtest
+SMOKED += paxctl
+#BAKE   += gradm pax-utils paxtest
+#BREWED += paxit paxtest
 #. Recon
 BAKE   += dnsmap
 BREWED += scrape
 
 #. Document Readers/Manipulators
 SMOKED += zathura
-BREWED += phraxtract
+#BREWED += phraxtract
 #. Media Readers/Manipulators
 SMOKED += feh ppmquant pnmnoraw convert img2txt #. via feh, netpbm, and imagemagick
 BREWED += doc2pdf
@@ -115,13 +118,12 @@ BREWED += deathrow
 #-------------------------------------------------------------------------------
 LIBS   += libnet.so libpcap.so libcrack.so libcrypt.so libsnmp.so libpcre.so
 LIBS   += libwiretap.so libssl.so libssh.so libpng.so libtiff.so libgif.so
-LIBS   += libncurses.so libxml2.so libcucul.so libcaca.so libsvn_client-1.so
-LIBS   += libapr-1.so libaprutil-1.so libfbclient.so libmysqlclient.so
-LIBS   += libgdk-x11-2.0.so libdasm32.so libdasm64.so
-#LIBS   += lib32-pcre-8.10-3  lib32-dbus-core-1.4.0-2  lib32-glib2-2.26.1-2  lib32-glib-1.2.10-11
-#LIBS   += libafpclient libncp libpg
-
-HEADS  += libdasm.h
+LIBS   += libncurses.so libxml2.so libcaca.so libsvn_client-1.so #libcucul.so
+LIBS   += libapr-1.so libaprutil-1.so #libfbclient.so
+LIBS   += libmysqlclient.so #libgdk-x11-2.0.so
+LIBS   += libdasm32.so libdasm64.so libgcrypt.so libgsf-1.so libncursesw.so
+#LIBS  += lib32-pcre-8.10-3  lib32-dbus-core-1.4.0-2  lib32-glib2-2.26.1-2  lib32-glib-1.2.10-11
+#LIBS  += libafpclient libncp libpg
 
 #. FIXME: header requirements: openssl/rsa.h
 
@@ -170,22 +172,30 @@ help:
 	@echo
 	@echo "################################################################################"
 
-status: clear
+status-binz:
 	@echo "Binariez expected to be smoked"
 	@( $(foreach r,$(SMOKED),$(call smoke,$r);) )|sort -k2
 	@echo
+status-libz:
 	@echo "Shared librariez:"
 	@( $(foreach s,$(LIBS),$(call libz,$s);) )|sort -k2
 	@echo
+	@test ! -e $(AIS_ERRORZ) || exit 1
+status-datz:
 	@echo "Data filez:"
 	@( $(foreach d,$(DATA),$(call data,$d);) )|sort -k2
+	@test ! -e $(AIS_ERRORZ) || exit 1
 	@echo
+status-brewz:
+	@test ! -e $(AIS_ERRORZ) || exit 1
 	@echo "Home-brewed executablez:"
 	@( $(foreach c,$(BREWED),$(call cook,$c);) )|sort -k2
 	@echo
+status-bakez:
 	@echo "Packages to bake (if ingredients are at hand):"
 	@( $(foreach b,$(BAKE),$(call bake,$b);) )|sort -k2
 	@echo
+status: tidy status-libz status-datz status-binz status-brewz status-bakez clear
 	@echo "Summary:"
 	@printf "$(AIS_FAIL)${AIS_SEP}%s\n" `cat ${AIS_ERRORZ}|wc -l` errorz
 	@printf "$(AIS_WARN)${AIS_SEP}%s\n" `cat ${AIS_WARNINGZ}|wc -l` warningz
@@ -203,14 +213,16 @@ count:
 $(shell mkdir -p build)
 include make.d/Makefile.direct
 
-build: $(foreach c,$(BREWED),build/$c)
+build: tidy status-libz status-datz $(foreach c,$(BREWED),build/$c)
 	@$(call proxy)
 
-clean:
-	@$(MAKE) -C elvez $@
-	@rm -f $(foreach c,$(BREWED),build/$c)
+tidy:
 	@rm -f ${AIS_ERRORZ}
 	@rm -f ${AIS_WARNINGZ}
+
+clean: tidy
+	@$(MAKE) -C elvez $@
+	@rm -f $(foreach c,$(BREWED),build/$c)
 	@find . -type l -exec rm -f {} \;
 	@$(call proxy)
 
@@ -218,6 +230,10 @@ purge: clean
 	@$(call proxy)
 	@rm -f $(foreach d,$(DATA),data/$d)
 	@rmdir build && mkdir build
+
+bake:
+	@$(foreach b,$(BAKE),$(MAKE) --no-print-directory -f make.d/Makefile.$b build;)
+	@$(foreach b,$(BAKE),$(MAKE) --no-print-directory -f make.d/Makefile.$b install;)
 
 install: ${PREFIX}/bin ${PREFIX}/share $(foreach c,$(BREWED),${PREFIX}/bin/$c)
 	@$(call proxy)

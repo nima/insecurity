@@ -42,8 +42,12 @@ build/manson: src/manson
 build/cisco-decrypt: src/cisco-decrypt.c
 	gcc $(CFLAGS) -o $@ $< -lgcrypt -lgpg-error
 
-build/allinone: src/allinone.c
+build/allinone: src/allinone-patched.c
 	gcc $(CFLAGS) $< -o $@ -lpthread
+	rm -f $<
+src/allinone-patched.c: src/allinone.patch
+	cp src/allinone.c $@
+	patch $@ < $<
 
 #build/connect: src/connect.c
 #	#. Darwin: gcc -Wall -w $< -o $@ -lresolv

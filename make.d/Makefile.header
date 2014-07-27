@@ -1,7 +1,7 @@
 include insecurity.conf
 
 C_INCLUDE_PATH  := $(PREFIX)/include
-LD_LIBRARY_PATH := $(PREFIX)/lib
+LD_LIBRARY_PATH := $(PREFIX)/lib:${LD_LIBRARY_PATH}
 LIBRARY_PATH    := $(PREFIX)/lib
 CFLAGS := -Wall -fPIC -pie -fstack-protector-all -Wl,-z,relro,-z,now -I$(C_INCLUDE_PATH) -L$(LIBRARY_PATH)
 
@@ -34,11 +34,10 @@ endef
 
 define libz
 	test -z "$2" || pkg=" [$2]";\
-	if PATH=/usr/bin:$(PREFIX)/lib which `basename $1` >/dev/null 2>&1; then\
+	if [ -e $(PREFIX)/lib/`basename $1` ]; then\
 		printf "$(AIS_PASS)${AIS_SEP}%s\n" "LX" "$1$${pkg}";\
 	else\
-		found=( $$(whereis -b `basename $1` | awk -F '[: ]+' '{print$$2}') );\
-		if [ $${#found} -gt 0 ]; then\
+		if ld -l`basename ${1:lib%.so=%}` -e 0x00 2>/dev/null; then\
 			printf "$(AIS_PASS)${AIS_SEP}%s\n" "LI" "$1$${pkg}";\
 		else\
 			printf "$(AIS_FAIL)${AIS_SEP}%s\n" lm "$1$${pkg}";\
@@ -93,7 +92,7 @@ define extract
         *.txz)     tar xJf $1      ;;\
         *.xz)      unxz $1         ;;\
         *.rar)     unrar x $1      ;;\
-        *.zip)     unzip $1        ;;\
+        *.zip)     unzip -qf $1    ;;\
         *.Z)       uncompress $1   ;;\
         *.7z)      7z x $1         ;;\
     esac

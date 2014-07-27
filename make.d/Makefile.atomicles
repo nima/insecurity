@@ -6,8 +6,8 @@ AIS_MAKE_OPTS        := --no-print-directory
 AIS_CHECK            := doc/README
 AIS_SRC_SUBDIR       := src
 AIS_BIN_SUBDIR       := src
-AIS_BIN              := daemonize lock syschk ia32emu atomicles
+AIS_BIN              := daemonize lock atomicles #syschk ia32emu
 AIS_SCM              := git
-AIS_SCM_URI          := git://git.autonomy.net.au/atomicles
+AIS_SCM_URI          := git://github.com/nima/atomicles
 
 include make.d/Makefile.footer
