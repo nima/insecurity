@@ -1,0 +1,100 @@
+include insecurity.conf
+
+C_INCLUDE_PATH  := $(PREFIX)/include
+LD_LIBRARY_PATH := $(PREFIX)/lib
+LIBRARY_PATH    := $(PREFIX)/lib
+CFLAGS := -Wall -fPIC -pie -fstack-protector-all -Wl,-z,relro,-z,now -I$(C_INCLUDE_PATH) -L$(LIBRARY_PATH)
+
+SHELL        := /bin/bash
+PWD          := $(shell pwd)
+UNAME        := $(shell uname)
+ME           := $(shell whoami)
+
+MAKESELF     := $(PWD)/lib/makeself-2.1.5/makeself.sh
+
+AIS_FAIL     := [\e[1;31m%s\e[0m]
+AIS_PASS     := [\e[1;32m%s\e[0m]
+AIS_WARN     := [\e[1;33m%s\e[0m]
+AIS_ERRORZ   := .errorz
+AIS_WARNINGZ := .warningz
+AIS_SEP      := ... 
+
+define data
+	if [ -f $(DATAZ)/$1 ]; then\
+		printf "$(AIS_PASS)${AIS_SEP}%s\n" "DI" "$1";\
+	else\
+		printf "$(AIS_FAIL)${AIS_SEP}%s\n" "du" "$1";\
+		echo $1 >> ${AIS_ERRORZ};\
+	fi
+endef
+
+define proxy
+	$(foreach s,$(BAKE),$(MAKE) --no-print-directory -f make.d/Makefile.$s $@;)
+endef
+
+define libz
+	test -z "$2" || pkg=" [$2]";\
+	if PATH=/usr/bin:$(PREFIX)/lib which `basename $1` >/dev/null 2>&1; then\
+		printf "$(AIS_PASS)${AIS_SEP}%s\n" "LX" "$1$${pkg}";\
+	else\
+		found=( $$(whereis -b `basename $1` | awk -F '[: ]+' '{print$$2}') );\
+		if [ $${#found} -gt 0 ]; then\
+			printf "$(AIS_PASS)${AIS_SEP}%s\n" "LI" "$1$${pkg}";\
+		else\
+			printf "$(AIS_FAIL)${AIS_SEP}%s\n" lm "$1$${pkg}";\
+			echo $1 >> ${AIS_ERRORZ};\
+		fi\
+	fi
+endef
+
+define smoke
+	test -z "$2" || pkg=" [$2]";\
+	if which `basename $1` >/dev/null 2>&1; then\
+		printf "$(AIS_PASS)${AIS_SEP}%s\n" "SI" "$1$${pkg}";\
+	else\
+		printf "$(AIS_FAIL)${AIS_SEP}%s\n" sm "$1$${pkg}";\
+		echo $1 >> ${AIS_ERRORZ};\
+	fi
+endef
+
+define cook
+	if which `basename $1` >/dev/null 2>&1; then\
+		printf "$(AIS_PASS)${AIS_SEP}%s\n" "CI" "$1";\
+	elif [ -x bin/$1 ]; then\
+		printf "$(AIS_WARN)${AIS_SEP}%s\n" "ci" "$1";\
+		echo $1 >> ${AIS_WARNINGZ};\
+	elif [ -f src/$1.c ]; then\
+		printf "$(AIS_WARN)${AIS_SEP}%s\n" "cc" "$1";\
+		echo $1 >> ${AIS_WARNINGZ};\
+	else\
+		printf "$(AIS_FAIL)${AIS_SEP}%s\n" "cm" "$1";\
+		echo $1 >> ${AIS_ERRORZ};\
+	fi
+endef
+
+define bake
+	binaries=$$($(MAKE) --no-print-directory -f make.d/Makefile.$1 binary;);\
+	for b in $${binaries}; do $(call smoke,$$b,$1); done;\
+	libs=$$($(MAKE) --no-print-directory -f make.d/Makefile.$1 lib;);\
+	test -z "$${libs}" || for s in $${libs}; do $(call libz,$$s,$1); done
+endef
+
+define extract
+    cd build;\
+    case "$1" in\
+        *.tar)     tar xf $1       ;;\
+        *.tar.bz2) tar xjf $1      ;;\
+        *.tbz2)    tar xjf $1      ;;\
+        *.bz2)     bunzip2 $1      ;;\
+        *.tar.gz)  tar xzf $1      ;;\
+        *.tgz)     tar xzf $1      ;;\
+        *.gz)      gunzip $1       ;;\
+        *.tar.xz)  tar xJf $1      ;;\
+        *.txz)     tar xJf $1      ;;\
+        *.xz)      unxz $1         ;;\
+        *.rar)     unrar x $1      ;;\
+        *.zip)     unzip $1        ;;\
+        *.Z)       uncompress $1   ;;\
+        *.7z)      7z x $1         ;;\
+    esac
+endef

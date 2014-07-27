@@ -1,0 +1,10 @@
+include make.d/Makefile.header
+
+AIS_NAME    := jd-gui
+AIS_VERSION := 0.3.3
+AIS_BIN     := jd-gui
+AIS_CHECK   := readme.txt
+
+include make.d/Makefile.footer
+
+#. Requires lib32-gtk2-2.22.1-2

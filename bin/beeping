@@ -1,0 +1,54 @@
+#!/bin/bash
+
+trap cleanup SIGINT
+
+DIE=0
+SLEEP=3
+
+lid=161616
+lock $lid create
+
+cleanup() {
+    printf "\nGoodbye!\n"
+    lock $lid delete
+    DIE=1
+}
+
+good() {
+    beep -f 8000 -l 100 -r 4 -d 20&
+}
+
+bad() {
+    beep -f 100 -l 500 -r 2 -d 200&
+}
+
+beeping() {
+    e=1
+    if lock $lid on -t -1; then
+        t0=$(date +'%s')
+        ip=$1
+        ping -q -c1 $ip -W $((${SLEEP}-1)) > /dev/null 2>&1
+        e=$?
+        t1=$(date +'%s')
+        sleep $((${SLEEP} - ($t1 - $t0)))
+        lock $lid off
+    elif [ ${DIE} -eq 0 ]; then
+        sleep ${SLEEP}
+    fi
+    return $e
+}
+
+if [ $# -eq 1 ]; then
+    ip=$1
+    while [ ${DIE} -eq 0 ]; do
+        printf "ping $ip at %s..." "$(date +'%H:%M:%S')"
+        if beeping $ip; then
+            good
+            echo "PASS"
+        else
+            bad
+            echo "FAIL"
+        fi
+    done
+fi
+

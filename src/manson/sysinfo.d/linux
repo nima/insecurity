@@ -1,0 +1,250 @@
+#!/bin/bash
+#. coding:utf-8
+#. vim: fileencoding=utf-8 syntax=bash sw=4 ts=4 et
+#. TODO: dmidecode -t system \
+#.           | tr -d '[\t ,.]'\
+#.           | gawk '{if($0~/^SystemInformation$/){p=1;next}else if($0~/^$/){p=0};if(p){print gensub(/([^:]*):(.*)$/, "\\1=\"\\2\"", "g");}}'
+source sysinfo.d/common
+
+getblock="sysinfo.d/getblock.awk"
+test $? -eq 0 || exit 63
+
+function sc_dmidecode {
+    echo ${RR_DMIDATA}
+}
+
+################################################################################
+function sc_sysinfo_kernelarch {
+    uname -m
+    return $e
+}
+
+function sc_sysinfo_kernelver {
+    uname -r
+    return $e
+}
+
+################################################################################
+eval $(awk -f ${getblock} -v block="Processor Information" $(sc_dmidecode))
+function sc_sysinfo_cpuclock {
+    echo ${dmi_ProcessorInformation[CurrentSpeed]}
+}
+
+function sc_sysinfo_cpufamily {
+    echo ${dmi_ProcessorInformation[Family]}
+}
+
+function sc_sysinfo_cpucores {
+    local _cpucorecount=$(awk '/^cpu cores/ {print $4}' /proc/cpuinfo | sort -u)
+    echo ${_cpucorecount:-1}
+}
+
+function sc_sysinfo_cpumodel {
+    echo ${dmi_ProcessorInformation[Version]}\
+        | sed -e 's/Intel.*CPU *//g' -e 's/ @.*$//g'
+}
+
+function sc_sysinfo_cpuvendor {
+    echo ${dmi_ProcessorInformation[Manufacturer]}
+}
+
+function sc_sysinfo_cpuhyperthread {
+    local _cpusiblings=$(awk '/siblings/ {print $3}' /proc/cpuinfo | sort -u)
+    local _cpucc=$(sc_sysinfo_cpucores)
+    [ -z "$_cpusiblings" ] && _cpusiblings=$_cpucc
+    [ $_cpucc -eq $_cpusiblings ] && echo no || echo yes
+}
+
+function sc_sysinfo_cpusockets {
+    # Virtual machine workarounds
+    _cpuphyscount=$(egrep '^physical id' /proc/cpuinfo | sort -u | wc -l)
+    if [ $_cpuphyscount -eq 0 ]; then
+        _proccount=$(egrep '^processor' /proc/cpuinfo | sort -u | wc -l)
+        echo $_proccount
+    else
+        echo $_cpuphyscount
+    fi
+}
+
+################################################################################
+#. FIXME: M "/var/lib/cfengine3/modules/DeployBundle Debian
+#. FIXME:   BaseClient": /opt/sysconf/share/sysinfo.d/linux:
+#. FIXME:   line 83: echo: write error: Broken pipe
+eval $(awk -f ${getblock} -v block="System Information" $(sc_dmidecode))
+function sc_sysinfo_hwmodel {
+    echo "${dmi_SystemInformation[ProductName]}"
+}
+function sc_sysinfo_hwserial {
+    echo "${dmi_SystemInformation[SerialNumber]}"
+}
+
+function sc_sysinfo_hwvendor {
+    if [ "${SC_SYSINFO[hwvendor]}" == 'Unknown' ]; then
+        echo "${dmi_SystemInformation[Manufacturer]}"
+    else
+        echo "${SC_SYSINFO[hwvendor]}"
+    fi
+}
+
+################################################################################
+function sc_sysinfo_memmodules {
+    awk -f ${getblock}\
+        -v block="Memory Device"\
+        -v showall=1 $(sc_dmidecode)\
+        | grep '\[Size\]'\
+        | wc -l
+}
+function sc_sysinfo_memsize {
+    awk -F'[: ]*' '$1~/MemTotal/{printf("%s%s\n",$2,$3)}' /proc/meminfo
+}
+
+function sc_sysinfo_osdescr {
+    if [ -e /etc/redhat-release ]; then
+        cat /etc/redhat-release
+    elif [ -e /etc/SuSE-release ]; then
+        grep -v VERSION /etc/SuSE-release | sed "s/PATCHLEVEL =/SP/" | tr '\n' ' '
+    elif [ -e /etc/lsb-release ]; then
+        . /etc/lsb-release
+        echo $DISTRIB_DESCRIPTION
+    else
+        echo 'unknown'
+    fi
+}
+
+function sc_sysinfo_osfamily {
+    echo 'Linux'
+}
+
+function sc_sysinfo_osproduct {
+    if [ -e /etc/redhat-release ]; then
+        grep -o "Red Hat.*release" /etc/redhat-release | sed 's/Red hat //i;s/ release//i'
+    elif [ -e /etc/SuSE-release ]; then
+        head -n 1 /etc/SuSE-release | sed 's/^SUSE Linux //;s/ [0-9]\+.*$//'
+    elif [ -e /etc/arch-release ]; then
+        echo "Arch Linux"
+    elif [ -e /etc/lsb-release ]; then
+        . /etc/lsb-release
+        echo $DISTRIB_ID
+    else
+        echo 'Unknown'
+    fi
+}
+
+function sc_sysinfo_osvendor {
+    osvendor='Unknown'
+    if [ -e /etc/redhat-release ]; then
+        osvendor='RedHat'
+        grep -qi 'fedora' /etc/redhat-release && osvendor='Fedora'
+        grep -qi 'centos' /etc/redhat-release && osvendor='CentOS'
+    elif [ -e /etc/SuSE-release ]; then
+        osvendor='SuSE'
+    elif [ -e /etc/debian_version ]; then
+        osvendor='Debian'
+        if [ -d /pentest ]; then
+            osvendor='BackTrack'
+        elif [ -e /etc/lsb-release ]; then
+            grep -qi 'ubuntu' /etc/lsb-release
+            if [ $? -eq 0 ]; then
+                osvendor='Canonical'
+            fi
+        fi
+    elif [ -e /etc/arch-release ]; then
+        osvendor='Arch'
+    fi
+
+    echo ${osvendor}
+}
+
+function sc_sysinfo_osbreed {
+    local osbreed='unknown'
+    local osvendor=$(sc_sysinfo_osvendor)
+    case ${osvendor,,} in
+        fedora|centos|redhat)
+            osbreed=RedHat
+        ;;
+        debian|ubuntu|backtrack)
+            osbreed=Debian
+        ;;
+        arch)
+            osbreed=Arch
+        ;;
+    esac
+    echo ${osbreed}
+}
+
+function sc_sysinfo_osrldesignated() {
+    awk -F: '(($1~/^id$/)&&($3~/^initdefault$/)){print$2}' /etc/inittab
+}
+
+function sc_sysinfo_osrlcurrent() {
+    runlevel|awk '{print$2}'
+}
+
+function sc_sysinfo_ospkgmgr {
+    _initscripts=/unknown
+    if [ -f /etc/redhat-release ]; then
+        _initscripts=/etc/rc.d/init.d
+    elif [ -f /etc/debian_version ]; then
+        _initscripts=/etc/init.d
+    elif [ -f /etc/arch-release ]; then
+        _initscripts=/etc/rc.d
+    fi
+    echo $_initscripts
+}
+
+function sc_sysinfo_oslastupdate {
+    _lastupdate=
+    local osvendor=$(sc_sysinfo_osvendor)
+    case ${osvendor,,} in
+        fedora|centos|redhat)
+            _lastupdate=$(stat --printf '%Y' /var/lib/yum/yumdb/)
+        ;;
+        debian|ubuntu|backtrack)
+        ;;
+        arch)
+            _lastupdate=$(stat --printf '%Y' /var/lib/pacman/)
+        ;;
+    esac
+    echo $_lastupdate
+}
+
+
+function sc_sysinfo_osvermjr {
+    v=
+    if [ -e /etc/redhat-release ]; then
+        v=$(sed 's/.*release\s\+\([0-9]\+\).*/\1/i' /etc/redhat-release)
+    elif [ -e /etc/SuSE-release ]; then
+        v=$(awk '/VERSION/ {print $3}' /etc/SuSE-release)
+    elif [ -e /etc/lsb-release ]; then
+        . /etc/lsb-release
+        v=${DISTRIB_RELEASE%%.[0-9]*}
+    fi
+
+    [ -n "${v}" ] && echo "${v}" || echo 'unknown'
+}
+
+function sc_sysinfo_osvermnr {
+    v=0
+    if [ -e /etc/redhat-release ]; then
+        #. Fedora has no minor version
+        if ! grep -qi fedora /etc/redhat-release; then
+            osvermjr=$(sed 's/.*release\s\+\([0-9]\+\).*/\1/i' /etc/redhat-release)
+            if [ $_osvermjr -eq 5 ]; then
+                v=$(sed 's/.*release\s\+[0-9]\+\.\([0-9]\+\).*/\1/i' /etc/redhat-release)
+            else
+                v=$(sed 's/.*update\s\([0-9]\+\).*/\1/i' /etc/redhat-release)
+            fi
+        fi
+    elif [ -e /etc/SuSE-release ]; then
+        v=$(awk '/PATCHLEVEL/ {print $3}' /etc/SuSE-release)
+    elif [ -e /etc/lsb-release ]; then
+        . /etc/lsb-release
+        v=$(echo ${DISTRIB_RELEASE#[0-9]*.})
+    else
+        v='unknown'
+    fi
+
+    echo ${v}
+}
+
+# vim: ts=2 sw=2 et syn=sh

@@ -1,0 +1,42 @@
+#!/bin/bash
+#. Two's Complement to Signed Integer Converter
+e=1
+forward=1
+int=FAIL
+if [ $# -eq 1 ]; then
+    if [ ${1::2} = "0x" ]; then
+        #. Hex
+        int=$(printf "%#08x" 0x${1/0[xX]/})
+        e=0
+    else
+        #. Int
+        int=${1}
+        forward=0
+        e=0
+    fi
+elif [ $# -eq 4 ]; then
+    #. 4 little-endian-orderd bytes
+    int=$(printf "%#04x%02x%02x%02x" 0x${4} 0x${3} 0x${2} 0x${1})
+    if [ ${#int} = 10 ]; then
+        e=0
+    fi
+fi
+
+if [ $e -eq 0 ]; then
+    if [ ${forward} = 1 ]; then
+        if [ $(( $int >> 31)) -eq 0 ]; then
+            printf "%#010x ===> %i\n" $int $((-(~${int}+1)&0xffffffff))
+        else
+            printf "%#010x ===> %i\n" $int $((-((~${int}+1)&0xffffffff)))
+        fi
+    else
+        printf "%#010x <=== %i\n" $(($int&0xffffffff)) $(((~(-${int})+1)))
+    fi
+else
+    printf "Usage:\n"
+    printf "    Forward:\n"
+    printf "        %s 0x<hex>\n" $(basename $0)
+    printf "        %s <byte> <byte> <byte> <byte> (little endian)\n" $(basename $0)
+    printf "    Reverse:\n"
+    printf "        %s <int>\n" $(basename $0)
+fi

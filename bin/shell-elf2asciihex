@@ -1,0 +1,23 @@
+#!/bin/bash
+BASENAME=$(basename $0)
+TMP=/tmp/.$$.${BASENAME}
+
+function magic() {
+    readelf -x .text $1\
+        |awk -F '[ ]+' '$2~/0x/{print(substr($0,14,35))}'\
+        |tr -d '\n '
+}
+
+e=0
+if [ $# -eq 1 ]; then
+    magic $1
+elif [ $# -eq 0 -a ! -t 0 ]; then
+    cat /dev/stdin>${TMP}
+    magic ${TMP}
+    rm -f ${TMP}
+else
+    printf "Usage: %s <elf>\n" ${BASENAME}
+    e=1
+fi
+
+exit $e

@@ -1,0 +1,208 @@
+#!/usr/bin/python
+import sys, os, re
+
+class Block:
+    def __init__(self, instruction):
+        self._addr = instruction.addr()
+        self._terminates = False
+        self._instructions = list()
+        self._links = {
+            '+': None,
+            '-': None,
+        }
+        self.add_instruction(instruction)
+
+    def link(self, signum, bid):
+        self._links['%s' % signum] = bid
+
+    def addr(self):
+        return self._addr
+
+    def add_instruction(self, instruction):
+        self._instructions.append(instruction)
+        instruction._block = self
+
+    def close(self):
+        last = self._instructions[-1]
+
+        branches = last.branches()
+        if branches:
+            cond = self._instructions[-2]
+            self.link('-', branches)
+
+        self._terminates = last.terminates()
+
+    def terminates(self):
+        return self._terminates
+
+    def dot_content(self):
+        return "%s\\n\\n%s\\l" % (
+            self.dot_id(),
+            "\\l".join([x.dot_title() for x in self._instructions])
+        )
+
+    def dot_id(self):
+        return "x%08X" % self._addr
+
+    def dot(self, blocks):
+        print '%s [nojustify=true label="%s"];' % (
+            self.dot_id(),
+            self.dot_content()
+        )
+        for signum in ('+', '-'):
+            link = self._links[signum]
+            if link:
+                print '%s -> %s [%s];' % (
+                    self.dot_id(),
+                    blocks[link].dot_id(),
+                    (signum == '+') and "color=blue weight=2.0" or "color=red weight=1.0"
+                )
+
+class Instruction:
+    HASH = dict()
+    RE_VALID_3 = re.compile(r"^.text:([A-Za-z0-9]+)\s+([a-zA-Z]+)\s+([\w\s\W\S]+)\s*$")
+    RE_VALID_2 = re.compile(r"^.text:([A-Za-z0-9]+)\s+([a-zA-Z]+)\s*$")
+    def __init__(self, buffer):
+        self._is_label = False
+        self._valid = False
+        self._next = None
+        self._terminates = False
+        while self._valid is False and buffer:
+            raw = buffer.pop(0).strip()
+            if raw.count(';'):
+                raw = raw[0:raw.index(';')].strip()
+            self._raw = raw
+
+            match = Instruction.RE_VALID_3.match(raw)
+            if match is not None:
+                self._addr = int(match.group(1), 16)
+                self._opcode = match.group(2)
+                self._operands = match.group(3).replace('"', '\\"')
+                self._valid = True
+            else:
+                match = Instruction.RE_VALID_2.match(raw)
+                if match is not None:
+                    self._addr = int(match.group(1), 16)
+                    self._opcode = match.group(2)
+                    self._operands = None
+                    self._valid = True
+                else:
+                    sys.stderr.write("Error processing [%s]\n" % raw)
+
+        if self._opcode[0] == 'j':
+            jump_type, jump_addr = self._operands.split()
+            if jump_type == 'short':
+                self._next = int(jump_addr[4:], 16)
+        elif self._opcode in ('ret', 'retn'):
+            self._terminates = True
+
+        Instruction.HASH[self._addr] = self
+
+    def addr(self):
+        return self._addr
+
+    def opcode(self):
+        return self._opcode
+
+    def label(self):
+        return "x%08X" % self._addr
+
+    def branches(self):
+        return self._next
+
+    def terminates(self):
+        return self._terminates
+
+    def valid(self):
+        return self._valid
+
+    def dot_title(self):
+        s = None
+        if self._operands:
+            s = '    %s %s' % (self._opcode, self._operands)
+        else:
+            s = '    %s' % (self._opcode)
+        return s
+
+class Disass:
+    def __init__(self, asmsrcfile):
+        self._instructions = list()
+        #self._blocks = [Block('entry')]
+        fH = open(asmsrcfile)
+        buffer = fH.readlines()
+        while buffer:
+            i = Instruction(buffer)
+            self._instructions.append(i)
+
+    def disassemble(self):
+        instructions = list()
+
+        i = 0
+        blocks = {}
+        block = None
+        last_block = None
+
+        for instruction in self._instructions:
+            branches = instruction.branches()
+            if branches:
+                blocks[branches] = None
+
+        while i < len(self._instructions):
+            #. Set the next instruction for processing
+            instruction = self._instructions[i]
+
+            if instruction.addr() in blocks.keys():
+                #. Have we previously decided that this is the start of a new
+                #. block?  If so, end the current block
+                if block:
+                    blocks[block.addr()] = block
+                    last_block = block
+                    block.close()
+
+                #. Next start a new one, initialized with this instruction.
+                block = Block(instruction)
+
+                #. Link the two if necessary
+                if last_block is not None:
+                    if not last_block.terminates():
+                        last_block.link('+', block.addr())
+
+            elif block is None:
+                block = Block(instruction)
+                if last_block is not None:
+                    if not last_block.terminates():
+                        last_block.link('+', block.addr())
+
+            else:
+                #. Having determined the containing block, add instruction to it
+                block.add_instruction(instruction)
+
+            #. If this instruction branches, terminate this block
+            if instruction.terminates() or instruction.branches():
+                blocks[block.addr()] = block
+                last_block = block
+                block.close()
+                block = None
+
+            i += 1
+
+        blocks[block.addr()] = block
+        block.close()
+
+        print "digraph g {"
+        print "node [shape=box margin=0.2,0.2];"
+        print "edge [arrowhead=vee];"
+        for bid in blocks:
+            block = blocks[bid]
+            block.dot(blocks)
+        print "}"
+
+
+def main():
+    asmsrcfile = sys.argv[1]
+    if(os.path.exists(asmsrcfile)):
+        disass = Disass(asmsrcfile)
+        disass.disassemble()
+
+if __name__ == "__main__":
+    main()

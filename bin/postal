@@ -1,0 +1,19 @@
+#!/bin/bash
+e=0
+PREFIX=/opt/autonomy/insecurity/
+if [ $# -eq 1 ]; then
+    if echo $1|grep -qE '^[0-9]+$'; then
+        declare -i postcode=$1
+        awk -F, '$1~/'${postcode}'/{printf"%s: %s, %s\n",$1,$2,$3}' ${PREFIX}/share/pc-au.csv |tr -d '"'
+        e=$?
+    else
+        declare city=$1
+        awk -F, 'tolower($2)~/"'${city}'"/{printf"%s: %s, %s\n",$1,$2,$3}' ${PREFIX}/share/pc-au.csv |tr -d '"'
+        e=$?
+    fi
+else
+    printf "Usage: %s postcode|city\n" $(basename $0)
+    e=1
+fi
+
+exit $e

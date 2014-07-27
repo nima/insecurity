@@ -1,0 +1,7 @@
+include make.d/Makefile.header
+
+AIS_NAME             := scnc
+AIS_VERSION          := 1.05
+AIS_CHECK            := scnc
+
+include make.d/Makefile.footer

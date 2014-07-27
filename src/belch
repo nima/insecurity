@@ -1,0 +1,13 @@
+#!/bin/bash
+EXTENDER=0
+JOPTS="-Xmn512M -Xms512M -Xmx512M"
+
+source /etc/profile
+
+if [ ${EXTENDER} -ne 0 ]; then
+    JARS=$(echo *.jar|tr '[\t ]' ':')
+    exec java ${JOPTS} -cp ${JARS} burp.StartBurp
+else
+    JARS=$(echo burpsuite_pro_v*.jar)
+    exec java -jar ${JARS}
+fi

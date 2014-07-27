@@ -1,0 +1,10 @@
+include make.d/Makefile.header
+
+AIS_NAME    := tty-clock
+AIS_VERSION := 2
+AIS_BIN     := tty-clock
+AIS_CHECK   := README
+AIS_SCM     := git
+AIS_SCM_URI := https://github.com/xorg62/tty-clock.git
+
+include make.d/Makefile.footer

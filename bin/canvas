@@ -1,0 +1,4 @@
+#!/bin/bash
+export PYTHONPATH=/usr/bin/python2.7
+cd /opt/immunity/canvas
+${PYTHONPATH} runcanvas.py $*

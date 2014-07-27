@@ -1,0 +1,4 @@
+#!/bin/bash
+cd /opt/autonomy/insecurity/libexec/nikto-2.1.4/
+./nikto.pl $*
+exit $?

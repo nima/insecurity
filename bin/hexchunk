@@ -1,0 +1,19 @@
+#!/bin/bash
+if [ $# -eq 2 ]; then
+    ADDR="0x${2/0x/}"
+    S=$(printf '%#010x' $((${ADDR} - 0x08)))
+    E=$(printf '%#010x' $((${ADDR} + 0x08)))
+    echo "Chunking ${S}..${E}:"
+
+    M="Contents of section .text:"
+    O=$(objdump -s $1 -j.text \
+		--start-address ${S} \
+		--stop-address ${E} \
+        | awk "\$0~/${M}/{x=98};{if(x==99){print\$0;exit;}else{x++};}"
+    )
+    echo "${O:0:39}" \
+        | cut -d ' ' -f 3- \
+        | tr -d ' '
+else
+    printf "Usage: %s <elf> <addr>\n" $(basename $0)
+fi

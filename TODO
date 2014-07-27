@@ -1,0 +1,10 @@
+Add support for installing man pages
+QCLI
+* Separate out into own repo
+* Implement:
+  * Asset Search
+  * Knowledgebase - CSV support
+  * Ticket Details
+
+
+printf "HEAD / HTTP/1.0\r\nHost: dev.rnd.virtualark.com\r\n\r\n"|socat -T1 TCP:dev.rnd.virtualark.com:80 - 

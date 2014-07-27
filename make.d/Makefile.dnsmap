@@ -1,0 +1,7 @@
+include make.d/Makefile.header
+
+AIS_NAME              := dnsmap
+AIS_VERSION           := 0.30
+AIS_CHECK             := REAME.txt
+
+include make.d/Makefile.footer

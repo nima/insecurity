@@ -1,0 +1,12 @@
+#!/bin/bash
+execlist() {
+    IFS=:
+    for path in ${PATH}; do
+        test ! -d $path || find ${path} -type f -exec file -L {} \;
+    done | awk -F '[: ]+' '$2~/ELF/{print$1}'
+}
+
+for bin in $(execlist); do
+    echo paxctl -CPEMRXS ${bin}
+    sudo paxctl -CPEMRXS ${bin}
+done

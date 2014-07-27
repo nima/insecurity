@@ -1,0 +1,11 @@
+#!/opt/bin/scapy -i
+conf.checkIPaddr = False
+fam,hw = get_if_raw_hwaddr(conf.iface)
+dhcp_ether = Ether(dst="ff:ff:ff:ff:ff:ff")
+dhcp_ip = IP(src="0.0.0.0",dst="255.255.255.255")
+dhcp_udp = UDP(sport=68,dport=67)
+dhcp_bootp = BOOTP(chaddr=hw)
+dhcp_dhcp = DHCP(options=[("message-type","discover"),"end"])
+dhcp_discover = dhcp_ether/dhcp_ip/dhcp_udp/dhcp_bootp/dhcp_dhcp
+ans, unans = srp(dhcp_discover, multi=True, timeout=5)
+print(' '.join([_[1].payload.src for _ in ans]))

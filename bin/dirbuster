@@ -1,0 +1,13 @@
+#!/bin/bash
+e=0
+if [ $# -eq 1 ]; then
+    cd /opt/autonomy/insecurity/libexec/DirBuster-0.12/
+    rm -f DirBuster-Report-*.txt
+    java -jar DirBuster-0.12.jar -H -u $1 2>&1|grep --color -i "^dir found: "
+    e=$?
+else
+    printf "Usage: %s <uri>\n" $(basename $0)
+    e=1
+fi
+
+exit $e

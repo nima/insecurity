@@ -1,0 +1,101 @@
+#!/bin/bash
+
+F=f
+S=S
+P=P
+E=E
+R=R
+M=M
+X=X
+while getopts ":FSPERMXspermx" option; do
+    case $option in
+        F ) F=F;;
+        S ) S=S;;
+        P ) P=P;;
+        E ) E=E;;
+        R ) R=R;;
+        M ) M=M;;
+        X ) X=X;;
+        f ) F=f;;
+        s ) S=s;;
+        p ) P=p;;
+        e ) E=e;;
+        r ) R=r;;
+        m ) M=m;;
+        x ) X=x;;
+    esac
+done
+shift $(($OPTIND - 1))
+flags=$(printf "%c%c%c%c%c%c" $S $P $E $R $M $X)
+
+function paxit() {
+    flags=$1
+
+    target=$2
+    bn=$(basename ${target})
+    magic=$(dd if=${target} count=4 bs=1 status=noxfer 2>/dev/null)
+    tmp=/tmp/${bn}
+
+    e=0
+    if [ "${magic}" == $'\177ELF' ]; then
+        if [ $F == 'F' ] || ! paxctl -Qv ${target} >/dev/null 2>&1; then
+            printf "%s..." "${bn}"
+            if ! paxctl -c ${flags} ${target} >/dev/null 2>&1; then
+                mode=$(stat -c %a ${target})
+                cp -f ${target} ${tmp}
+                if paxctl -c ${flags} ${tmp} > /dev/null 2>&1; then
+                    mv ${tmp} ${target} && chmod ${mode} ${target}
+                    echo CONVERTED
+                elif paxctl -C ${flags} ${tmp} > /dev/null 2>&1; then
+                    mv ${tmp} ${target} && chmod ${mode} ${target}
+                    echo CREATED
+                else
+                    echo FAILED
+                    e=1
+                fi
+            else
+                echo "CONVERTED [INPLACE]"
+            fi
+        fi
+    fi
+
+    return $e
+}
+
+if [ $# -eq 1 ]; then
+    target=$1
+
+    if [ -n "$target" ]; then
+        if [ -f "$target" ]; then
+            paxit -$flags $target
+        elif [ -d "$target" ]; then
+            find \
+                $target\
+                -type f\
+                -executable\
+                -not -name '*.so'\
+                -exec paxit -${flags} {}\
+            \;
+        fi
+    fi
+elif [ $# -eq 0 ]; then
+    #. Exception overrides
+    for file in basename dirname cp stat dd sudo git python2 python3 idal idaq assistant recollindex recoll djvused wine wine64 weechat-curses mono; do
+        paxit -SPERmX `which $file`
+    done
+
+    paxit -SPERmX /usr/lib/chromium/chromium
+    paxit -SPERmX /opt/java/jre/bin/java
+
+    paxit -SPErmX `which firefox`
+    paxit -SPErmX /usr/lib/xulrunner-2.0/plugin-container
+    paxit -SPErmX /usr/lib32/mozilla/plugins/libflashplayer.so
+    paxit -SPErmX /usr/lib/mozilla/plugins/liblightsparkplugin.so
+    paxit -SPErmX /usr/lib/nspluginwrapper/i386/linux/npviewer.bin
+
+    for target in /opt/bin /usr/bin; do
+        $0 -$flags $target
+    done
+else
+    printf "Usage: %s [-F|-f] <paxctl-flags> [<file>|<dir>]\n" $(basename $0)
+fi

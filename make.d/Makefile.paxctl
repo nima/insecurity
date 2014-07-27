@@ -1,0 +1,6 @@
+include make.d/Makefile.header
+
+AIS_NAME       := paxctl
+AIS_VERSION    := 0.5
+
+include make.d/Makefile.footer

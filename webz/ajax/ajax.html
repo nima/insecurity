@@ -1,0 +1,28 @@
+</script>
+
+<div id="message" style="background-color:red;width:100px;height:100px;">
+    Hello World!
+</div>
+
+<script type="text/javascript">
+function getXHR () {
+        var xhr = null;
+        if (window.XMLHttpRequest) {
+                xhr = new XMLHttpRequest();
+        } else if (window.createRequest) {
+                xhr = window.createRequest();
+        } else if (window.ActiveXObject) {
+                try {
+                        xhr = new ActiveXObject('Msxml2.XMLHTTP');
+                } catch (e) {
+                        try {
+                                xhr = new ActiveXObject('Microsoft.XMLHTTP');
+                        } catch (e) {}
+                }
+        }
+        return xhr;
+};
+
+r = getXHR();
+document.getElementById('message').innerHTML=r.getAllReponseHeaders();
+document.write("END");

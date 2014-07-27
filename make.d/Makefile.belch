@@ -1,0 +1,29 @@
+include make.d/Makefile.header
+
+AIS_NAME    := belchsuite-pro
+AIS_VERSION := 1.3.09
+AIS_BIN     := belch
+AIS_CHECK   := burp
+
+################################################################################
+BURP := $(AIS_NAME)-$(AIS_VERSION)
+AIS_PREBUILD_TARGETS := build/belch
+
+build/belch: build/$(BURP).stage
+	@ln -f $< $@
+
+build/$(BURP).stage: build/$(BURP)/Lib
+	@cd build/$(BURP) && $(MAKESELF) --bzip2 --nox11 . ../$(@F) $(BURP)-$(ME) ./belch
+	@chmod +x $@
+
+build/$(BURP)/Lib: build/$(BURP)
+	@install -d $@
+	@install src/burpy/BurpExtender.py $@/BurpExtender.py
+
+build/$(BURP): src/belch $(TARBALLZ)/burpsuite_pro_v$(AIS_VERSION).jar $(TARBALLZ)/burppython.jar
+	@mkdir -p $@
+	@cp src/belch $(TARBALLZ)/burpsuite_pro_v$(AIS_VERSION).jar $(TARBALLZ)/burppython.jar $@
+	@chmod +x $@/belch
+################################################################################
+
+include make.d/Makefile.footer

@@ -1,0 +1,7 @@
+#!/bin/bash
+grep ^flags /proc/cpuinfo | grep -q '\<nx\>'
+if [ $? -eq 0 ]; then
+    echo "NX Enabled"
+else
+    echo "NX Disabled"
+fi

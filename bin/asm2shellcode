@@ -1,0 +1,9 @@
+#!/bin/bash
+if [ $# -eq 1 ]; then
+    as $1.s -o /tmp/$1.o
+    ld -e main /tmp/$1.o -o /tmp/$1
+    mkshell /tmp/$1
+    rm -f /tmp/$1
+else
+    printf "Usage: %s <shellcode>\n" $(basename $0)
+fi

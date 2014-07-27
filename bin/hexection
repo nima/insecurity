@@ -1,0 +1,10 @@
+#!/bin/bash
+if [ $# -eq 3 ]; then
+    objdump $1 -j.text -d -Mintel | \
+        awk '/^.*<'"$2"'>:$/,/^$/{if(NR=='$3'&&$0){printf("[%03d] %s\n",NR,$0)}}'
+elif [ $# -eq 2 ]; then
+    objdump $1 -j.text -d -Mintel | \
+        awk '/^.*<'"$2"'>:$/,/^$/{if($0){printf("[%03d] %s\n",NR,$0)}}'
+else
+    printf "Usage: %s <elf> <fn> [<lineno>]\n" $(basename $0)
+fi

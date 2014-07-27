@@ -1,0 +1,10 @@
+include make.d/Makefile.header
+
+AIS_NAME       := sock
+AIS_VERSION    := 0.3.2
+AIS_BIN        := sock
+AIS_CHECK      := README
+AIS_SRC_SUBDIR := 
+AIS_BIN_SUBDIR := src
+
+include make.d/Makefile.footer

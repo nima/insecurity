@@ -1,0 +1,24 @@
+#!/bin/bash
+#. coding:utf-8
+#. vim: fileencoding=utf-8 syntax=bash sw=4 ts=4 et
+SC_SYSINFO[hwvendor]='Unknown'
+if [ -e /usr/bin/lspci ]; then
+    pcilist=$(/usr/bin/lspci)
+elif [ -e /sbin/lspci ]; then
+    pcilist=$(/sbin/lspci)
+elif [ -x /usr/sbin/system_profiler ]; then
+    #/usr/sbin/system_profiler SPHardwareDataType | awk -F': ' '/Model Name/ {print $2}'
+    SC_SYSINFO[hwvendor]=$(ioreg -rd1 -c IOPlatformExpertDevice | awk '$0~/product-name/{print "Apple:"$3}'|tr -d '<">')
+elif [ -x /usr/bin/oslevel ]; then
+    SC_SYSINFO[hwvendor]="$(uname -M)"
+fi
+
+if [ -n "${pcilist}" ]; then
+    match=$(echo $pcilist|grep -oiE 'compaq|hewlett-packard|ibm|qumranet|vmware'|sort|uniq -c|head -n1|awk '{print $2}')
+    case ${match,,} in
+        hewlett-packard|compaq) SC_SYSINFO[hwvendor]="HP";;
+        ibm) SC_SYSINFO[hwvendor]="IBM";;
+        qumranet) SC_SYSINFO[hwvendor]='KVM';;
+        vmware) SC_SYSINFO[hwvendor]='VMware';;
+    esac
+fi

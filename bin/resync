@@ -1,0 +1,54 @@
+#!/bin/bash
+
+#. NOTE:
+#. sudo chgrp wheel /var/run
+#. sudo chmod 1775 /var/run
+
+function config() {
+#pre-xfer exec   = echo \$RSYNC_USER_NAME@\$RSYNC_HOST_NAME:\$RSYNC_MODULE_PATH > /dev/stderr
+    cat << EOF
+uid             = nobody
+gid             = nobody
+port            = 8733
+list            = no
+use chroot      = no
+read only       = yes
+pid file        = /var/tmp/resyncd.pid
+log file        = /dev/stderr
+timeout         = 200
+max connections = 4
+
+[$1]
+    path = $2
+    comment = eat this muthufucka
+EOF
+
+}
+
+e=-1
+RSMOD="GTFO"
+RSDIR="$(pwd)"
+if [ $# -eq 2 ]; then
+    RSMOD="$1"
+    RSDIR="$2"
+    e=0
+elif [ $# -eq 1 ]; then
+    RSDIR="$1"
+    e=0
+elif [ $# -eq 0 ]; then
+    e=0
+fi
+
+if [ ! -d "${RSDIR}" ]; then
+    e=9
+    echo "Error: Directory \`${RSDIR}' non-existent"
+elif [ $e -eq 0 ]; then
+    config "${RSMOD}" "${RSDIR}" > /tmp/$$
+    rsync --daemon --no-detach --config=/tmp/$$
+    rm -f /tmp/$$
+    e=$?
+else
+    printf "Usage: %s [[<rsmod-name>] <directory>]\n" $(basename $0)
+fi
+
+exit $e

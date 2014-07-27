@@ -1,0 +1,30 @@
+#!/bin/bash
+LANG=
+function doc2pdf() {
+    file=$1
+    pdf="${file/%doc/pdf}"
+    printf "Generating %s..." "${pdf}"
+    if [ -f "${file}" ]; then
+        antiword -i3 -a a4 "${file}" > "${pdf}"
+        test $? -eq 0 && echo "Done" || echo "Failed"
+    else
+        echo "Failed"
+    fi
+}
+
+if [ $# -eq 0 ]; then
+    for i in *.{doc,docx,DOC,DOCX}; do
+        src="$i"
+        dst="$(echo $i|sed -e 's/[ \t]\+/_/g')"
+        if [ "${src}" != "${dst}" ]; then
+            mv ${src} ${dst}
+        fi
+    done
+    for i in *.doc; do
+        doc2pdf $i
+    done
+else
+    for i in $@; do
+        doc2pdf $i
+    done
+fi

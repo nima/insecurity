@@ -1,0 +1,7 @@
+#!/bin/bash
+#. `.' and `..' should be inode 2, otherwise we're in a chroot
+e=0
+inode=$(ls -ialp /|awk '$10 ~ /^.\/$/{print $1}')
+if [ ${inode} -ne 2 ]; then
+    e=1
+fi

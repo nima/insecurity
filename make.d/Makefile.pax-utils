@@ -1,0 +1,8 @@
+include make.d/Makefile.header
+
+AIS_NAME       := pax-utils
+AIS_VERSION    := 0.2.3
+AIS_BIN        := dumpelf pspax scanelf scanmacho lddtree.sh symtree.sh
+AIS_CHECK      := README
+
+include make.d/Makefile.footer

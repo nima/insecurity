@@ -1,0 +1,9 @@
+include make.d/Makefile.header
+
+AIS_NAME    := ike-scan
+AIS_VERSION := 1.9
+AIS_BIN     := psk-crack ike-scan
+AIS_CHECK   := README
+AIS_CONFIGURE_OPTS := --with-openssl
+
+include make.d/Makefile.footer

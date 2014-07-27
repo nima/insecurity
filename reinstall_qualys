@@ -1,0 +1,3 @@
+#!/bin/bash
+sudo rsync -Pa pylib/  /opt/autonomy/insecurity/pylib/
+sudo cp bin/qcli /opt/autonomy/insecurity/bin/qcli

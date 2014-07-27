@@ -1,0 +1,58 @@
+13:07:03  rasputin | hey so it seems like chpax doesn't modify the program header flags at all                                                                     │ fotisl        
+13:07:21   spender | hmm?                                                                                                                                          │ frank         
+13:07:22  rasputin | leaves the GNU_STACK in place                                                                                                                 │ gilbert       
+13:07:31   spender | yeah it'll leave that                                                                                                                         │ gluffis       
+13:07:35   spender | because it ignores it :p                                                                                                                      │ gr00vy        
+13:07:43  rasputin | what does it modify in the elf then?                                                                                                          │ happybob      
+13:07:44   spender | you use execstack -c to get rid of it                                                                                                         │ hawkes        
+13:07:53   spender | it has its own flags                                                                                                                          │ Hunger-       
+13:07:56   spender | PT_PAX_FLAGS                                                                                                                                  │ independence  
+13:08:06   spender | that control each option                                                                                                                      │ Intensity     
+13:08:58  rasputin | but when i use paxctl - then dump out the program headers - i can see a change in the program headers - using chpax, all the program headers  │ jailbox_      
+                   | are left unchanges                                                                                                                            │ jchibbra_     
+13:09:00  rasputin | e.g.:                                                                                                                                         │ jdoe          
+13:09:32  rasputin | http://src.autonomy.net.au/imagebin/dd1ff0d4ce5231aba7e7b9cb3c3a42e9-x                                                                        │ julien`_      
+13:09:34   spender | ah sure                                                                                                                                       │ kills         
+13:09:37  rasputin | and after paxctl:                                                                                                                             │ klondike      
+13:09:45   spender | because chpax modifies the EI_PAX flags                                                                                                       │ kocka         
+13:09:53   spender | which doesn't modify program headers                                                                                                          │ kyou          
+13:10:09  rasputin | http://src.autonomy.net.au/imagebin/e0ca95b21363e96fd582cfceb3bf45ff-x                                                                        │ Larry6        
+13:10:09   spender | it's a hack into some existing elf flag in some unused bits                                                                                   │ lavish        
+13:10:16  rasputin | ohhh                                                                                                                                          │ lejonet       
+13:10:26  rasputin | now i get it                                                                                                                                  │ mcp           
+13:10:33   spender | that's why chpax is also "legacy" :P                                                                                                          │ mdeslaur      
+13:10:38  rasputin | i see                                                                                                                                         │ Merlin        
+13:10:59  rasputin | I'll work that into my elf reader then                                                                                                        │ kocka         
+13:13:34  rasputin | i noticed however, without applying paxctl, but being on a EI_PAX kernel, the randomization is not nearly as good - is that right? or have i  │ kyou          
+                   | done something wrong you think?                                                                                                               │ Larry6        
+13:13:50   spender | shouldn't be any difference                                                                                                                   │ lavish        
+13:14:03   spender | they both just set the pax flags into some structure in the kernel                                                                            │ lejonet       
+13:14:17   spender | and then beyond that, features are applied based on those flags                                                                               │ mcp           
+13:14:28  rasputin | ok - ive done something wrong then                                                                                                            │ mdeslaur      
+13:14:31   spender | so it doesn't matter whether the flags were set by EI_PAX or PT_PAX_FLAGS                                                                     │ Merlin        
+13:14:32         * | rasputin looks harder :D                                                                                                                      │ micah         
+13:14:35   spender | the rest of the kernel doesn't know :p                                                                                                        │ minipli     ++
+
+13:15:35  rasputin | yep - it was me                                                                                                                               │ klondike      
+13:20:06  rasputin | yeah i think the word "legacy" should be reserved for setting flags via EI_PAX, as opposed to having EI_PAX support in the kernel             │ kocka         
+13:20:44   spender | yeah i agree :p                                                                                                                               │ kyou          
+13:20:45  rasputin | sounds like the best of both worlds comes by compiling in EI_PAX, but restricting yourself to use PT_PAX_FLAGS only via paxctl                │ Larry6        
+13:20:57   spender | well, except the problem is                                                                                                                   │ lavish        
+13:21:19   spender | once someone starts using these unused bits in EI_IDENT that PaX is using                                                                     │ lejonet       
+13:21:34   spender | then it'll start screwing with PaX settings                                                                                                   │ mcp           
+13:22:00  rasputin | yes, right, so we're in the first 16 bytes of the elf binary space then                                                                       │ mdeslaur      
+13:22:03   spender | but it hasn't happened in a decade :p                                                                                                         │ Merlin        
+13:22:23  rasputin | right - time to update the elf spec :P                                                                                                        │ micah         
+13:22:36     dzhkh | rasputin: pmsg                                                                                                                                │ minipli     ++
+
+09:41:30 rasputin | morning                                                                                                                                                                                                    │ julien`_
+09:42:40  spender | hola sir                                                                                                                                                                                                   │ kocka
+09:42:52  spender | i talked over the PT_PAX_FLAGS situation with pipacs                                                                                                                                                       │ kyou
+09:42:58  spender | per our discussion last night!                                                                                                                                                                             │ Larry6
+09:43:13  spender | when it was initially added, there was no paxctl -C                                                                                                                                                        │ lavish
+09:43:30  spender | and thus no way to change the flags to fix some broken userland unless your toolchain supported it                                                                                                         │ lejonet
+09:43:58  spender | now that there is, we can flip the default into hard-mode                                                                                                                                                  │ mcp
+09:44:19  spender | so it'll be in the next grsec patch, and then pipacs will pick up the change as well in a few months                                                                                                       │ mdeslaur
+10:05:29 rasputin | sweet! :D                                                                                                                                                                                                  │ Merlin
+10:06:08 rasputin | sounds perfect                                                                                                                                                                                             │ micah
+10:06:12  spender | :p                                                                                                                                                                                                         │ minipli

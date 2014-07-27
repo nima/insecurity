@@ -1,0 +1,10 @@
+include make.d/Makefile.header
+
+AIS_NAME    := DirBuster
+AIS_VERSION := 0.12
+AIS_CHECK   := directory-list-1.0.txt
+AIS_BIN     := dirbuster
+AIS_CLASS   := JAVA
+AID_WRAPPER := 1
+
+include make.d/Makefile.footer

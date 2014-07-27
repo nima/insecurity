@@ -1,0 +1,4 @@
+#!/bin/bash
+cd /opt/japisoft/editix/
+bin/editix $*
+exit $?

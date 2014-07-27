@@ -1,0 +1,8 @@
+include make.d/Makefile.header
+
+AIS_NAME    := darkhttpd
+AIS_VERSION := 1.7
+AIS_BIN     := darkhttpd
+AIS_CHECK   := README
+
+include make.d/Makefile.footer

@@ -1,0 +1,35 @@
+#!/bin/bash -x
+PORT=443
+REQUEST=wiki-request
+RESPONSE=response
+SERVER=$(awk '$1~/Host:/{print$2}' ${REQUEST}|tr -d '\r\n')
+
+#. Method 1 - Manual with netcat
+#socat -t3 'tcp-listen:6666,bind=127.0.0.1,fork,reuseaddr'  "openssl:encrypted.google.com:443,verify=0"
+#socat -t3 'tcp-listen:6666,bind=127.0.0.1,fork,reuseaddr'  "openssl:secure.wikimedia.org:443,verify=0"
+
+#. Method 2 - Auto
+#socat -t8 'OPEN:wiki-request!!CREATE:zz'  "openssl:secure.wikimedia.org:443,verify=0"
+
+#. Method 3 - Auto
+#echo > ${RESPONSE}
+#exec 6>>${RESPONSE}
+#echo START >&6
+#ls -l /proc/self/fd/6
+#socat -t15 -T15 "openssl:${SERVER}:${PORT},verify=0" "open:${REQUEST},rdonly"'!!'"fd:6,setlk,lock,append=1"
+#echo END >&6
+#exec 6>&-
+
+#. Method 3 - Auto
+socat -4 -T600 \
+    "openssl:${SERVER}:${PORT},verify=0" \
+    "open:${REQUEST},rdonly=1,ignoreeof"'!!'"open:${RESPONSE},wronly=1,create=1,sync=1,noctty=0,trunc"
+
+#. Method 4 - Auto
+#socat -t3 'tcp-listen:6666,bind=127.0.0.1'  "openssl:${SERVER}:${PORT},verify=0"&
+#sync
+#sleep 1
+#nc localhost 6666 < ${REQUEST} > ${RESPONSE}
+
+sync
+ls -l ${RESPONSE}

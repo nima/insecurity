@@ -1,0 +1,69 @@
+include make.d/Makefile.header
+
+################################################################################
+#build/lbd: bin/lbd
+#	install $< $@
+#
+#build/geoip: bin/geoip
+#	install $< $@
+#
+#build/supergenpass: bin/supergenpass
+#	install $< $@
+#
+#build/myip: bin/myip
+#	install $< $@
+#
+#build/elf-check: bin/elf-check
+#	install $< $@
+#
+#build/postal: bin/postal
+#	install $< $@
+
+################################################################################
+build/elf: src/elf.c
+	gcc $(CFLAGS) $< -o $@
+
+build/sshcrack: src/thc_ssh_crack.c
+	gcc $(CFLAGS) -lssl -lcrypto $< -o $@
+
+build/hexquash: src/hexquash.c
+	g++ -Wall $< -o $@
+
+build/qcli: bin/qcli
+	cp $< $@
+
+build/manson: src/manson
+	cd $< && $(MAKESELF) --bzip2 --nox11 . /tmp/.manson manson ./dispatcher
+	mv /tmp/.manson $@
+
+#build/mygcc: src/size.c
+#	gcc -Wall $< -o $@
+
+build/cisco-decrypt: src/cisco-decrypt.c
+	gcc $(CFLAGS) -o $@ $< -lgcrypt -lgpg-error
+
+build/allinone: src/allinone.c
+	gcc $(CFLAGS) $< -o $@ -lpthread
+
+#build/connect: src/connect.c
+#	#. Darwin: gcc -Wall -w $< -o $@ -lresolv
+#	gcc -Wall -w $< -o $@
+
+#build/google-dork: src/google-dork.c
+#	gcc -m32 $(CFLAGS) $< -o $@
+
+build/shelldisasm: src/sigsegv.c src/shelldisasm.c
+	gcc -m32 $(CFLAGS) -w -o $@ -rdynamic -ggdb -g -O0 -ldl -ldasm32 $^
+	paxctl -cm $@
+
+build/shellcoder: src/sigsegv.c src/shellcoder.c src/shell.h
+	gcc -m32 $(CFLAGS) -w -o $@ -rdynamic -ggdb -g -O0 -ldl $^
+	paxctl -cm $@
+
+build/shellwriter: src/sigsegv.c src/shellwriter.c src/shell.h
+	gcc -m32 $(CFLAGS) -w -o $@ -rdynamic -ggdb -g -O0 -ldl $^
+	paxctl -cm $@
+
+################################################################################
+build/%:
+	@test -x bin/$(@F) && install bin/$(@F) $@ || gcc ${CFLAGS} src/$(@F).c -o $@

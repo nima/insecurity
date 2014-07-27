@@ -1,0 +1,420 @@
+#!/usr/bin/env python2.7
+from base64 import decodestring as foo
+
+import struct, os
+from time import sleep
+from sys import stdout, argv
+from twisted.internet import defer
+from twisted.internet import reactor
+from twisted.internet import error
+
+def schedule_job(ip, fqdn, port, factory, timeout=10):
+    d = defer.Deferred()
+    tcp = reactor.connectTCP(fqdn, port, factory, timeout)
+    data = Factory.DATA[ip]
+    data.setTcp(tcp)
+    data.setDeferred(d)
+
+    #d.addErrback(errback)
+    #d.addCallback(callback)
+    return d
+
+class Data:
+    def __init__(self, fqdn=None, ip=None, connector=None):
+        self._state = 'UNKNOWN'
+        self.payload = None
+        self.deferred = None
+        self.tcp = None
+
+        if connector:
+            fqdn = connector.host
+            self.connector = connector
+            connector.data = self
+
+        if fqdn and ip:
+            assert socket.gethostbyname(fqdn) == ip
+            assert socket.gethostbyaddr(ip)   == fqdn
+            self.fqdn = fqdn
+            self.ip = ip
+        elif fqdn:
+            self.fqdn = fqdn
+            self.ip = socket.gethostbyname(fqdn)
+        elif ip:
+            self.ip = ip
+            self.fqdn = socket.gethostbyaddr(ip)
+        else:
+            raise RuntimeError
+
+        Factory.DATA[self.ip] = self
+
+        Factory.status()
+
+    def __repr__(self):
+        return 'Data[%s][%s:%s - %s]' % (
+            self._state, self.fqdn, self.ip, self.payload
+        )
+
+    def state(self):
+        return self._state
+
+    def setState(self, state):
+        self._state = state
+
+    def setPayload(self, payload):
+        if payload:
+            print 'WARNING - setPayload() called more than once!'
+            self.setState('SUCCESS')
+            self.payload = payload
+
+    def setTcp(self, tcp):
+        assert self.tcp is None
+        self.tcp = tcp
+
+    def setDeferred(self, deferred):
+        assert self.deferred is None
+        self.deferred = deferred
+
+    def setConnector(self, connector):
+        assert self.connector is None
+        self.connector = connector
+        connector.data = self
+
+    def hasPayload(self):
+        return self.payload is not None
+
+    def callback(self, args):
+        self.deferred.callback(args)
+
+    payload = property(
+        lambda self: self.payload,
+        setPayload
+    )
+
+from twisted.internet import protocol
+class Factory(protocol.ClientFactory):
+    fid = 0
+    '''
+    Creates a Protocol, and is in charge of handling received events relating to
+    the connection state.
+
+    To configure a reconnecting client, see `Reconnection' at:
+        http://twistedmatrix.com/documents/current/core/howto/clients.html
+    '''
+
+    DATA = dict()
+    SINGLETON = None
+
+    @staticmethod
+    def states():
+        states = dict([(_.state(), 0) for _ in Factory.DATA.values()])
+        for ip in Factory.DATA.keys():
+            states[Factory.DATA[ip].state()] += 1
+        return states
+
+    @staticmethod
+    def status():
+        x = Factory.states()
+        x.pop('UNKNOWN')
+        stdout.write("%d of %d from total %d %s\n" % (
+            sum(x.values()),
+            len(Factory.DATA),
+            Factory.SINGLETON.expected(),
+            Factory.states()
+        ))
+
+    @staticmethod
+    def summary():
+        print '*'*80
+        for ip in Factory.DATA.keys():
+            print Factory.DATA[ip]
+
+    @staticmethod
+    def stop():
+        if len(Factory.DATA) == Factory.SINGLETON.expected():
+            reactor.stop()
+
+    def __init__(self, username, password, passphrase, command, total, limit=9):
+        assert Factory.SINGLETON is None
+        Factory.SINGLETON = self
+
+        Factory.fid += 1
+        #self.d = defer.Deferred()
+        self.fid = Factory.fid
+        self.username = username
+        self.password = password
+        self.passphrase = passphrase
+        self.command = command
+        self._expected = total
+        self._limit = limit
+
+    def __repr__(self):
+        states = self.states()
+        return ', '.join(
+            ['%s : %s' % (state, states[state]) for state in states.keys()]
+        )
+
+    def buildProtocol(self, addr):
+        t = Transport(
+            self,
+            self.username,
+            self.password,
+            self.passphrase,
+            self.command
+        )
+        return t
+
+    def expected(self):
+        return self._expected
+
+    ############################################################################
+    #. Connection Startup...
+    #def doStart(self):
+    #    pass
+
+    #def startFactory(self):
+    #    pass
+
+    def startedConnecting(self, connector):
+        Data(connector=connector)
+
+    ############################################################################
+    #. Connection Teardown...
+    #def doStop(self):
+    #    pass
+
+    #def stopFactory(self):
+    #    pass
+
+    def clientConnectionMade(self, connector):
+        print 'made'
+
+    def clientConnectionLost(self, connector, reason):
+        protocol.ClientFactory.clientConnectionLost(self, connector, reason)
+        connector.data.callback(reason)
+        #clientConnectionLost(connector, reason)
+
+    def clientConnectionFailed(self, connector, reason):
+        protocol.ClientFactory.clientConnectionFailed(self, connector, reason)
+        connector.data.callback(reason)
+        try:
+            reason.raiseException()
+        except error.ConnectionDone:
+            connector.data.setState('FAILED:ConnectionDone')
+            return
+        except error.ConnectionLost:
+            connector.data.setState('FAILED:ConnectionLost')
+            return
+        except error.DNSLookupError:
+            connector.data.setState('FAILED:DNSLookup')
+            return
+        except error.TimeoutError:
+            connector.data.setState('FAILED:Timeout')
+            return
+
+        print 'Factory failed to establish a connection:', reason
+
+
+from twisted.conch.ssh import transport
+class Transport(transport.SSHClientTransport):
+    def __init__(self, factory, username, password, passphrase, command):
+        self.factory    = factory
+        self.username   = username
+        self.password   = password
+        self.passphrase = passphrase
+        self.command    = command
+
+    #def connectionMade(self):
+    #    transport.SSHClientTransport.connectionMade(self)
+    #    print 'SSH Connection established'
+
+    #def dataReceived(self, data):
+    #    return data
+    #    self.data.append(data)
+    #    print self.data
+
+    def connectionLost(self, reason):
+        #print 'SSH Connection lost'
+        transport.SSHClientTransport.connectionLost(self, reason)
+        #self.deferred.callback(self)
+        #self.factory.gotData(''.join(self.data))
+
+    def verifyHostKey(self, hostKey, fingerprint):
+        #stdout.write('SSH Verification of HKF[%s] - Assumed\n' % fingerprint)
+        return defer.succeed(True)
+
+    def connectionSecure(self):
+        self.requestService(
+            UserAuth(
+                self.username,
+                self.password,
+                self.passphrase,
+                Connection(self.command)
+            )
+        )
+
+from twisted.conch.ssh import connection
+class Connection(connection.SSHConnection):
+    def __init__(self, cmd, *args, **kwargs):
+        connection.SSHConnection.__init__(self, *args, **kwargs)
+        self.command = cmd
+        self.channel = Channel(conn=self)
+
+    def serviceStarted(self):
+        #print 'Connection start'
+        connection.SSHConnection.serviceStarted(self)
+        self.openChannel(self.channel)
+
+    def serviceStopped(self):
+        #print 'Connection stop'
+        connection.SSHConnection.serviceStopped(self)
+        self.channelClosed(self.channel)
+
+
+from twisted.conch.ssh import channel
+from twisted.conch.ssh.common import NS
+class Channel(channel.SSHChannel):
+    name = 'session'    # must use this exact string
+
+    def __init__(self, *args, **kwargs):
+        channel.SSHChannel.__init__(self, *args, **kwargs)
+
+    def ip(self):
+        return self.conn.transport.transport.getPeer().host
+
+    def openFailed(self, reason):
+        print 'dopenFailed', ip
+        print '"%s" failed: %s' % (self.conn.command, reason)
+
+    def channelOpen(self, data):
+        self.welcome = data   # Might display/process welcome screen
+        d = self.conn.sendRequest(
+            self,
+            'exec',
+            NS(self.conn.command),
+            wantReply=1
+        )
+        Factory.DATA[self.ip()].setState('OPENING')
+        d.addCallback(self._channelOpenCompleted)
+
+    def _channelOpenCompleted(self, stuff):
+        print stuff
+        Factory.DATA[self.ip()].setState('OPENED')
+
+    def dataReceived(self, data):
+        Factory.DATA[self.ip()].setPayload(data.strip())
+        #d = defer.Deferred()
+        #d.addCallback(lambda (d, i): Factory.DATA[ip][1] = data)
+        #d.callback((data, ip))
+
+    def closeReceived(self):
+        channel.SSHChannel.closeReceived(self)
+        self.conn.transport.loseConnection()
+    #def eofReceived(self):
+    #    pass
+    #def extReceived(self):
+    #    pass
+    #def connectionLost(self, reason):
+    #    pass
+    #def closed(self):
+    #    pass
+
+from twisted.conch.ssh import userauth, keys
+class UserAuth(userauth.SSHUserAuthClient):
+    def __init__(self, user, password, passphrase, connection):
+        userauth.SSHUserAuthClient.__init__(self, user, connection)
+        self.method = 0
+        self.password = password
+        self.passphrase = passphrase
+
+    def getPassword(self, prompt=None):
+        if self.method == 1:
+            self.method += 1
+            return defer.succeed(self.password)
+        else:
+            return None
+
+    def getPublicKey(self):
+        if self.passphrase:
+            if self.method == 0:
+                self.method += 1
+                return keys.Key.fromFile('%s/.ssh/id_rsa.pub' % os.getenv('HOME')).blob()
+            else:
+                return None
+        else:
+            self.method += 1
+            return None
+
+    def getPrivateKey(self):
+        if self.passphrase:
+            return defer.succeed(
+                keys.Key.fromFile(
+                    '%s/.ssh/id_rsa' % os.getenv('HOME'),
+                    passphrase=self.passphrase
+                ).keyObject
+            )
+        else:
+            return None
+
+
+from twisted.internet import task
+from twisted.internet import threads
+from twisted.internet import protocol
+from twisted.python import log
+from getpass import getpass
+
+import socket
+def get_fqdns(fN):
+    data = list()
+    fH = open(fN, 'r')
+    for fqdn in fH.readlines():
+        fqdn = fqdn.strip()
+        try:
+            item = (socket.gethostbyname(fqdn), fqdn, port)
+            data.append(item)
+        except socket.gaierror:
+            print 'skipping %s due to DNS resolution failure' % fqdn
+    fH.close()
+    return data
+
+def errback(results):
+    return '------> (Error: %s)' % str(results).replace('\n', ' ')
+
+def callback(results):
+    return '------> (Success: %s)' % str(results).replace('\n', ' ')
+
+from twisted.python import log
+if __name__=='__main__':
+    if len(argv) == 2:
+        #log.startLogging(stdout)
+        port = 22
+        batchSize = 16
+
+        username = os.getenv('USERNAME')
+        command = 'hostname'
+        #command    = raw_input('Command[%s]: ' % command) or command
+        #username   = raw_input('Username[%s]: ' % username) or username
+        #password   = getpass('Enter SSH Password: ')
+        #passphrase = getpass('Enter SSH Passphrase: ')
+        #. XXX REMOVE THIS LATER XXX
+        username   = foo('bnRhbGViaQ==')
+        password   = foo('b25laWdodDc=')
+        passphrase = None
+
+        sem = defer.DeferredSemaphore(batchSize)
+        data = get_fqdns(argv[1])
+        factory = Factory(
+            username, password, passphrase, command,
+            len(data), limit=batchSize
+        )
+
+        deferreds = []
+        for ip, fqdn, port in data:
+            d = sem.run(schedule_job, ip, fqdn, port, factory)
+            deferreds.append(d)
+        d = defer.DeferredList(deferreds)
+        #d.addCallback(summary)
+        #d.addErrback(summary)
+
+        reactor.run()
+    else:
+        stdout.write('Usage: %s <input-file>\n' % os.path.basename(argv[0]))

@@ -1,0 +1,2 @@
+#!/bin/bash
+while manson=$(pgrep manson); do pstree -H $manson -p $manson; sleep 1; done

@@ -1,0 +1,18 @@
+#!/bin/bash
+e=0
+if [ $# -gt 0 ]; then
+    if [ $# -eq 1 ]; then
+        obj=$1
+        objdump -x -d -Mintel ${obj}|awk '$1~/start/&&$2~/address/{print$3}'
+    else
+        for obj in $@; do
+            addr=$(objdump -x -d -Mintel ${obj}|awk '$1~/start/&&$2~/address/{print$3}')
+            printf "%s %s\n" ${addr} ${obj}
+        done
+    fi
+else
+    printf "Usage: %s <elf-binary> [<elf-binary> [...]]\n" $(basename $0)
+    e=1
+fi
+
+exit $e

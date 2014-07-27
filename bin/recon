@@ -1,0 +1,176 @@
+#!/bin/bash
+BASENAME=$(basename $0)
+PID=$$
+
+function l_whois() {
+    printf "/* whois ***************************************************************** {{ */\n"
+
+    local TMP="/tmp/.${BASENAME}.${PID}.l_whois"
+
+    whois -H $1 >${TMP} 2>/dev/null
+    if grep -qi "^No match for \"${1}\".$" ${TMP}; then
+        echo "NO DATA"
+    else
+        cat ${TMP}
+        rm ${TMP}
+    fi
+    printf "/* whois ***************************************************************** }} */\n"
+}
+
+function l_nmap() {
+    printf "/* nmap ****************************************************************** {{ */\n"
+    fqdn=$1
+    nmap -p0-65535 -T4 -A -sV -v -Pn ${fqdn}
+    printf "/* nmap ****************************************************************** }} */\n"
+}
+
+function l_headers() {
+    local TMP="/tmp/.${BASENAME}.${PID}.l_headers"
+    rm -f ${TMP}
+
+    fqdn=$1
+    port=$2
+    case ${port} in
+        80)
+            printf "HEAD / HTTP/1.0\r\nHost: %s\r\n\r\n" ${fqdn}\
+                | socat "TCP:${fqdn}:${port}" "STDIN,ignoreeof!!OPEN:${TMP},create" 2>/dev/null
+        ;;
+
+        443)
+            printf "HEAD / HTTP/1.0\r\nHost: %s\r\n\r\n" ${fqdn}\
+                | socat "OPENSSL:${fqdn}:${port},verify=0" "STDIN,ignoreeof!!OPEN:${TMP},create" 2>/dev/null
+        ;;
+    esac
+
+    if [ -e ${TMP} ]; then
+        declare -i status
+        status=$(awk '$1~/HTTP/{printf$2;exit}' ${TMP})
+        if [ -n "${status}" ]; then
+            if [ ${status} -eq 302 ]; then
+                location=$(awk '$1~/Location/{printf$2}' ${TMP})
+                printf "%d:%s\n" ${status} ${location}
+            else
+                printf "%d\n" ${status}
+            fi
+        else
+            printf "DEAD\n"
+        fi
+    else
+        printf "TIMEOUT\n"
+    fi
+
+    rm -f ${TMP}
+}
+
+function l_dns() {
+    printf "/* dns ******************************************************************* {{ */\n"
+
+    local TMP="/tmp/.${BASENAME}.${PID}.l_dns"
+    declare -A SCANNED
+
+    IP=$(dig +short in A $1)
+    printf "IP: %s\n" ${IP}
+
+    NS=( $(dig +short in NS $1) )
+    if [ ${#NS[@]} -gt 0 ]; then
+        for ns in ${NS[@]}; do
+            printf "NS: %s\n" "${NS[@]%%.}"
+            printf " \___AXFR:%s: " ${ns%%.}
+            dig @${ns} AXFR $1 > ${TMP}
+            records=$(cat ${TMP}|awk '$2~/XFR/{print$4;exit}')
+            if [ -n "${records}" ]; then
+                printf "%d records\n" $records
+                for rT in A CNAME PTR SRV TXT SOA; do
+                    subrecords=( $(cat ${TMP}|awk '$4~/'${rT}'/{print$1}'|sort|uniq) )
+                    if [ ${#subrecords[@]} -gt 0 ]; then
+                        for fqdn in ${subrecords[@]%%.}; do
+                            ip=( $(dig +short ${fqdn}) )
+                            printf "    \___%s:%s[%s]\n" ${rT} ${fqdn} "${ip[@]}"
+                            if [ -z "${SCANNED[${ip}]}" ]; then
+                                geoip ${fqdn}|sed 's/^/      \\___/'
+                                declare -i port
+                                for port in 22 23 25 53 80 443 3128 8080 8081; do
+                                    TMP2="${TMP}.${fqdn}.${port}"
+                                    if socat -T1 "TCP:${fqdn}:${port},connect-timeout=1" "STDIN!!OPEN:${TMP2},create" 2>/dev/null; then
+                                        case ${port} in
+                                            22|25)
+                                                printf "      \___%d[%s]\n" ${port} "$(cat ${TMP2}|tr -d '\r\n')"
+                                            ;;
+                                            80|443)
+                                                printf "      \___%d:" ${port}
+                                                l_headers ${fqdn} ${port}
+                                            ;;
+                                        esac
+                                    fi
+                                    rm -f ${TMP2}
+                                    SCANNED[${ip}]=1
+                                done
+                            fi
+                        done
+                        printf "\n"
+                    fi
+                done
+            else
+                printf "0 records\n"
+            fi
+        done
+    fi
+
+    MX=( $(dig +short in MX ${SUBDOMAIN}|awk '{print$2}') )
+    if [ ${#MX[@]} -gt 0 ]; then
+        printf "MX: %s\n" "${MX[@]%%.}"
+    fi
+
+    SRV=( $(dig +short in SRV ${SUBDOMAIN}) )
+    if [ ${#SRV[@]} -gt 0 ]; then
+        printf "SRV: %s\n" "${SRV[@]%%.}"
+    fi
+
+    TXT=( $(dig +short in TXT ${SUBDOMAIN}) )
+    if [ ${#TXT[@]} -gt 0 ]; then
+        printf "TXT: %s\n" "${TXT[@]%%.}"
+    fi
+
+    rm -f ${TMP}
+    printf "/* dns ******************************************************************* }} */\n"
+}
+
+function l_google_dork() {
+    local TMP="/tmp/.${BASENAME}.${PID}.l_dns"
+    google-dork "inurl:$1" -r > ${TMP}
+    if [ -s ${TMP} ]; then
+        printf "/* google-dork *********************************************************** {{ */\n"
+        cat ${TMP}
+        printf "/* google-dork *********************************************************** }} */\n"
+    fi
+    rm -f ${TMP}
+}
+
+e=0
+if [ $# -eq 1 ]; then
+    FQDN=$1
+
+    SUBDOMAIN=${FQDN}
+    NMAPPED=1
+    while [ $(echo ${SUBDOMAIN}|grep -o '[.]'|wc -l) -gt 0 ]; do
+        printf "################################################################################\n"
+        if [ ${NMAPPED} -eq 0 ]; then
+            l_nmap ${FQDN}
+            NMAPPED=1
+        fi
+        printf "### %s {{ ###\n" ${SUBDOMAIN}
+        l_dns ${SUBDOMAIN}
+        l_google_dork ${SUBDOMAIN}
+        l_whois ${SUBDOMAIN}
+        printf "### %s }} ###\n\n\n" ${SUBDOMAIN}
+        SUBDOMAIN=${SUBDOMAIN#[-a-zA-Z0-9]*.}
+    done
+else
+    printf "Usage: %s <fqdn>\n" ${BASENAME}
+    e=1
+fi
+
+exit $e
+
+#fierce -wordlist /srv/autonomy/insecurity/subdomainz -dns virtualark.com
+#fierce -dns ${SUBDOMAIN}|awk '{if($0~/^There/)p=0;if(p){print};if($0~/found:$/)p=1;}'

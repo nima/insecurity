@@ -1,0 +1,40 @@
+PREFIX  = /opt/autonomy/geoip
+VERSION = 1.4.7
+
+BUILD   := src/GeoIP-$(VERSION)
+
+################################################################################
+
+build: $(BUILD) src/GeoLiteCity.dat
+$(BUILD): src/GeoIP.tar.gz
+	cd src && tar xzf $(<F)
+	cd $@ && ./configure --prefix=${PREFIX}
+	$(MAKE) -C $(BUILD)
+	$(MAKE) -C $(BUILD) check
+
+src/GeoIP.tar.gz:
+	wget -q http://www.maxmind.com/download/geoip/api/c/$(@F) -O $@
+
+src/GeoLiteCity.dat: src/GeoLiteCity.dat.gz
+	cat $< | gunzip > $@
+src/GeoLiteCity.dat.gz:
+	wget -q http://www.maxmind.com/download/geoip/database/$(@F) -O $@
+
+clean:
+	test ! -d $(BUILD) || $(MAKE) -C $(BUILD) clean
+
+purge:
+	rm -rf src/GeoIP-$(VERSION) src/GeoLiteCity.dat
+
+.PHONY: build clean purge
+################################################################################
+install: $(BUILD)
+	$(MAKE) -C $< install
+	$(foreach f,$(wildcard ${PREFIX}/bin/*),ln -sf $f /opt/bin/$(shell basename $f);)
+	cp src/GeoLiteCity.dat ${PREFIX}/share/GeoIP/GeoIPCity.dat
+
+uninstall:
+	rm -rf ${PREFIX}
+
+.PHONY: install uninstall
+################################################################################

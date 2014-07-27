@@ -1,0 +1,6 @@
+#!/usr/bin/perl -W
+while (defined($line = <STDIN>)) {
+    print join ".", map {hex} reverse ((sprintf "%08x", split /\./, $line) =~ /../g);
+    print "\n";
+};
+

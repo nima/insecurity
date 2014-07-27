@@ -1,0 +1,8 @@
+include make.d/Makefile.header
+
+AIS_NAME             := dhex
+AIS_VERSION          := 0.65
+AIS_CHECK            := README.txt
+#AIS_BIN              := dhex
+
+include make.d/Makefile.footer

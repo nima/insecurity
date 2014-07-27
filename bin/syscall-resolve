@@ -1,0 +1,35 @@
+#!/bin/awk -f
+BEGIN {
+    e=1
+    syscall=ARGV[1];
+    IFS=/[ ]+/;
+
+    if(!syscall){
+        printf("Usage: syscall-resolve <syscall>\n");
+        exit 1;
+    }
+
+    unistd="/usr/include/asm/unistd_32.h"
+    while(getline < unistd) {
+        if($1~/#define/){
+            if("__NR_"syscall==$2){
+                e=0;
+                printf("%s32: %#04x (%3d)\n",syscall,$3,$3);
+                break;
+            }
+        }
+    }
+
+    unistd="/usr/include/asm/unistd_64.h"
+    while(getline < unistd) {
+        if($1~/#define/){
+            if("__NR_"syscall==$2){
+                e=0;
+                printf("%s64: %#04x (%3d)\n",syscall,$3,$3);
+                break;
+            }
+        }
+    }
+
+    exit e;
+}

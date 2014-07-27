@@ -1,0 +1,82 @@
+#!/usr/bin/env python2
+import time, os
+from datetime import datetime
+import urllib, urllib2
+from StringIO import StringIO
+from lxml import etree, html
+
+base = "http://www.tdcj.state.tx.us/stat"
+url = "%s/executedoffenders.htm" % base
+request = urllib2.Request(url)
+response = urllib2.urlopen(request)
+html = response.read()
+parser = etree.HTMLParser()
+tree = etree.parse(StringIO(html), parser)
+
+meatbag = tree.xpath(
+    '/html/body/div[@id="start_main_content"]/table[@class="os"]/tbody/tr'
+)
+
+class DeadMeat:
+    def __init__(self, data):
+        data = [_ for _ in data]
+        self._executionId = data.pop(0).text
+        uri = data.pop(0).xpath('a/@href')
+        self._info = uri and "%s/%s" % (base, uri[0]) or '?'
+        uri = data.pop(0).xpath('a/@href')
+        self._last_statement = uri and "%s/%s" % (base, uri[0]) or '?'
+        self._last_name = data.pop(0).text
+        self._first_name = data.pop(0).text
+        self._tdcj_number = data.pop(0).text
+        self._age = data.pop(0).text
+        self._executionDate = self._defuzz_date(data.pop(0).text)
+        self._race = data.pop(0).text
+        self._county = data.pop(0).text
+
+    def img(self):
+        self._img = None
+        request = urllib2.Request(self._info)
+        response = urllib2.urlopen(request)
+        html = response.read()
+        parser = etree.HTMLParser()
+        tree = etree.parse(StringIO(html), parser)
+        imglist = tree.xpath(
+            '//div[@id="start_main_content"]/div[@id="offender_photo"]/img/@src'
+        )
+        if imglist:
+            self._img = '%s/%s' % (os.path.dirname(self._info), imglist[0])
+
+        return self._img
+
+    def __str__(self):
+        return "%s %s (%s); executed %s - %s" % (
+            self._first_name,
+            self._last_name,
+            self._race,
+            self._executionDate.strftime('%Y-%m-%d'),
+            self._last_statement and self._last_statement.encode('utf-8') or "?"
+        )
+
+    def _defuzz_date(self, datestr):
+        if len(datestr) != 10:
+            m, d, y = [int(_) for _ in datestr.split('/')]
+            if y <= int(time.strftime('%y')):
+                y+= 2000
+            elif y < 100:
+                y += 1900
+            datestr = '%02d/%02d/%04d' % (m, d, y)
+
+        return datetime.strptime(datestr, '%m/%d/%Y')
+
+title = None
+dead = []
+for deadmeat in meatbag:
+    if title is not None:
+        dead.append(DeadMeat(deadmeat))
+    else:
+        title = deadmeat
+
+dead.sort(key=lambda d: d._executionDate, reverse=False)
+
+for corpse in dead:
+    print corpse

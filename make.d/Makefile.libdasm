@@ -1,0 +1,19 @@
+include make.d/Makefile.header
+
+AIS_NAME              := libdasm
+AIS_VERSION           := svn
+AIS_CHECK             := README.txt
+AIS_BIN               :=
+AIS_H                 := libdasm.h
+AIS_SO                := libdasm32.so libdasm64.so
+AIS_SCM               := svn
+AIS_SCM_URI           := http://libdasm.googlecode.com/svn/trunk/
+AIS_POSTBUILD_TARGETS := libdasm32.so libdasm64.so
+
+include make.d/Makefile.footer
+
+libdasm32.so:
+	@cd build/$(AIS_NAME)-$(AIS_VERSION) && $(CC) $(CFLAGS) -m32 -shared -o $@ libdasm.c
+
+libdasm64.so:
+	@cd build/$(AIS_NAME)-$(AIS_VERSION) && $(CC) $(CFLAGS) -m64 -shared -o $@ libdasm.c

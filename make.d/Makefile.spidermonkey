@@ -1,0 +1,12 @@
+include make.d/Makefile.header
+
+AIS_NAME       := js
+AIS_VERSION    := 1.7.0
+AIS_BIN        := js jscpucfg jskwgen
+AIS_CHECK      := README
+AIS_SRC_SUBDIR := src
+AIS_BIN_SUBDIR := src/$(UNAME)_All_DBG.OBJ/
+
+AIS_MAKEFILE   := Makefile.ref
+
+include make.d/Makefile.footer

@@ -1,0 +1,90 @@
+#!/bin/bash
+#. coding:utf-8
+#. vim: fileencoding=utf-8 syntax=bash sw=4 ts=4 et
+source /opt/sysconf/share/sc.conf
+source ${SC_SHARE_D}/sysinfo.d/common
+
+getblock="${SC_SHARE_D}/sysinfo.d/getblock.awk"
+chmod +x ${getblock}
+
+_confdata=`/usr/sbin/lsconf`
+
+function sc_sysinfo_cpucores {
+  echo "$_confdata" | awk -F': ' '/Num.*ssors/ {print $2}'
+}
+
+function sc_sysinfo_cpufamily {
+  echo "$_confdata" | awk -F': ' '/Proc.*Type/ {print $2}'
+}
+
+function sc_sysinfo_cpusockets {
+  echo "$_confdata" | awk -F': ' '/Num.*ssors/ {print $2}'
+}
+
+function sc_sysinfo_cpuvendor {
+  _vendor=`echo "$_confdata" | awk -F': ' '/Proc.*Type/ {print $2}'`
+  echo $_vendor | fgrep -qi 'powerpc' && echo 'ibm' && return
+  echo $_vendor | fgrep -io 'intel'   && return
+  echo $_vendor | fgrep -io 'amd'     && return
+  echo 'Unknown'
+}
+
+function sc_sysinfo_hwmodel {
+  echo "$_confdata" | awk -F': ' '/System Model/ {print $2}'
+}
+
+function sc_sysinfo_hwserial {
+  echo "$_confdata" | awk -F': ' '/Machine Serial Number/ {print $2}'
+}
+
+function sc_sysinfo_hwvendor {
+  echo 'IBM'
+}
+
+function sc_sysinfo_kernelarch {
+  echo "$_confdata" | awk -F': ' '/Kernel Type/ {print $2}'
+}
+
+function sc_sysinfo_kernelver {
+  uname -r
+}
+
+function sc_sysinfo_memmodules {
+  return
+}
+
+function sc_sysinfo_memsize {
+ _memsize=`echo "$_confdata" | awk -F': ' '/^Memory Size/ {print $2}'`
+ echo $_memsize | awk '/MB/ {size=$1}; /GB/ {size=$1*1024}; /TB/ {size=$1*1024*1024} END{print size}'
+}
+
+function sc_sysinfo_osdescr {
+  return
+}
+
+function sc_sysinfo_osfamily {
+  echo 'aix'
+}
+
+function sc_sysinfo_osproduct {
+  return
+}
+
+function sc_sysinfo_osvendor {
+  return
+}
+
+function sc_sysinfo_osvermjr {
+  #osver=`/usr/bin/sw_vers -productVersion`
+  #echo ${osver%.*}
+  return
+}
+
+function sc_sysinfo_osvermnr {
+  #osver=`/usr/bin/sw_vers -productVersion`
+  #echo ${osver##*.}
+  return
+}
+
+
+# vim: ts=2 sw=2 et syn=sh

@@ -1,0 +1,96 @@
+#!/bin/bash
+#. coding:utf-8
+#. vim: fileencoding=utf-8 syntax=bash sw=4 ts=4 et
+#. TODO: /usr/sbin/system_profiler -detailLevel full SPHardwareDataType
+
+source /opt/sysconf/share/sc.conf
+source ${SC_SHARE_D}/sysinfo.d/common
+
+getblock="${SC_SHARE_D}/sysinfo.d/getblock.awk"
+chmod +x ${getblock}
+
+_sphwdata=`/usr/sbin/system_profiler SPHardwareDataType`
+_spmemdata=`/usr/sbin/system_profiler SPMemoryDataType`
+
+function sc_sysinfo_cpucores {
+  echo "$_sphwdata" | awk -F': ' '/Num.*Cores/ {print $2}'
+}
+
+function sc_sysinfo_cpufamily {
+  echo "$_sphwdata" | awk -F': ' '/Proc.*Name/ {print $2}' | sed 's/^Intel *//;s/^AMD *//'
+}
+
+function sc_sysinfo_cpusockets {
+  echo "$_sphwdata" | awk -F': ' '/Num.*ssors/ {print $2}'
+}
+
+function sc_sysinfo_cpuvendor {
+  _vendor=`echo "$_sphwdata" | awk -F': ' '/Proc.*Name/ {print $2}'`
+  echo $_vendor | fgrep -io 'intel' && return
+  echo $_vendor | fgrep -io 'amd'   && return
+  echo 'Unknown'
+}
+
+function sc_sysinfo_hwmodel {
+  echo "$_sphwdata" | awk -F': ' '/Model Name/ {print $2}'
+}
+
+function sc_sysinfo_hwserial {
+  echo "$_sphwdata" | awk -F': ' '/Serial Number/ {print $2}'
+}
+
+function sc_sysinfo_hwvendor {
+  echo 'Apple'
+#  $(sc_sysinfo_hw_model) | grep -q Mac && echo 'Apple' && return
+#  echo 'unknown'
+}
+
+function sc_sysinfo_kernelarch {
+  uname -m
+}
+
+function sc_sysinfo_kernelver {
+  uname -r
+}
+
+function sc_sysinfo_memmodules {
+  echo "$_spmemdata" | grep 'Status: OK' | wc -l | sed 's/^ *//'
+}
+
+function sc_sysinfo_memsize {
+ _memsize=`echo "$_sphwdata" | awk -F': ' '/Memory/ {print $2}'`
+ echo $_memsize | awk '/MB/ {size=$0}; /GB/ {size=$1*1024}; /TB/ {size=$1*1024*1024} END{print size}'
+}
+
+function sc_sysinfo_osdescr {
+  name=`sw_vers -productName`
+  version=`sw_vers -productVersion`
+  build=`sw_vers -buildVersion`
+  echo "$name $version $build"
+}
+
+function sc_sysinfo_osfamily {
+  echo 'darwin'
+}
+
+function sc_sysinfo_osproduct {
+  /usr/bin/sw_vers -productName | grep -i 'Mac OS X'
+}
+
+function sc_sysinfo_osvendor {
+  sw_vers -productName | grep -q Mac && echo 'Apple' && return
+  echo 'unknown'
+}
+
+function sc_sysinfo_osvermjr {
+  osver=`/usr/bin/sw_vers -productVersion`
+  echo ${osver%.*}
+}
+
+function sc_sysinfo_osvermnr {
+  osver=`/usr/bin/sw_vers -productVersion`
+  echo ${osver##*.}
+}
+
+
+# vim: ts=2 sw=2 et syn=sh

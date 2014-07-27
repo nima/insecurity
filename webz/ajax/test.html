@@ -1,0 +1,62 @@
+<!-- Components {{
+
+$=[]
+$+!$          //. "false"
+$+!!$         //. "true"
+({}+$)        //. "[object Object]"
+
+
+($+!$)[1]     //. a
+({}+$)[2]     //. b
+({}+$)[5]     //. c
+              //. d
+({}+$)[4]     //. e
+($+!$)[0]     //. f
+              //. g
+              //. h
+              //. i
+({}+$)[3]     //. j
+              //. k
+($+!$)[2]     //. l
+              //. m
+              //. n
+({}+$)[1]     //. o
+              //. p
+              //. q
+($+!!$)[1]    //. r
+($+!$)[3]     //. s
+({}+$)[6]     //. t
+($+!!$)[2]    //. u
+              //. v
+              //. w
+              //. x
+              //. y
+              //. z
+
+/*
+//. $ - Our magic variable, which is simply an empty array, but for us - serves as a pointer
+$=[];
+
+//. $$ - function sort() { [native code] }
+$$=$[($+!$)[3]+({}+$)[1]+($+!!$)[1]+({}+$)[6]];
+
+//. _ - capture a pointer to `window'
+[_=$$()];
+
+//. window.alert(4);
+_[[($+!$)[1]]+[($+!$)[2]]+[({}+$)[4]]+[($+!!$)[1]]+[({}+$)[6]]](4)
+
+//. encapsulate the statements in square brackets, remove comments and semicolons, and get:
+*/
+
+}} -->
+<html>
+    <head>
+        <script type="text/javascript">
+            [[$=[]][$$=$[($+!$)[3]+({}+$)[1]+($+!!$)[1]+({}+$)[6]]]][_=$$()]
+            [_[[($+!$)[1]]+[($+!$)[2]]+[({}+$)[4]]+[($+!!$)[1]]+[({}+$)[6]]](4)]
+        </script>
+    </head>
+    <body>
+    </body>
+</html>

@@ -1,0 +1,3 @@
+#!/bin/sh
+printf ABCD | od -tx4 | grep -q 44434241
+test $? -eq 0 && echo "Little Endian" || echo "Big Endian"

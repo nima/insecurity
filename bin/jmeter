@@ -1,0 +1,4 @@
+#!/bin/bash
+cd /opt/autonomy/insecurity/libexec/jakarta-jmeter-2.4
+bin/jmeter $*
+exit $?

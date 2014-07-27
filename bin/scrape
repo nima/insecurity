@@ -1,0 +1,113 @@
+#!/usr/bin/env python2
+
+import os, sys, stat
+from lxml import etree
+import lxml.html as lh
+import urllib2
+from md5 import md5
+from time import strftime, sleep, time
+from random import random
+
+CHUNK_SIZE = 8192
+
+pastebin  = 'pastebin.com'
+#sys.stdout.write("Scraping %s...\n" % pastebin)
+e = 0
+
+now    = int(time())
+destination = '/srv/scrapez/%s' % pastebin
+index  = 'http://%s/archive' % pastebin
+doc    = lh.parse(urllib2.urlopen(index))
+dox = {
+    'link'   : doc.xpath("/html/body/div[@id='super_frame']/div[@id='monster_frame']//table/tr/td[@class='icon']/a/@href"),
+    'name'   : doc.xpath("/html/body/div[@id='super_frame']/div[@id='monster_frame']//table/tr/td[@class='icon']/a"),
+    'expire' : doc.xpath("/html/body/div[@id='super_frame']/div[@id='monster_frame']//table/tr/td[3]"),
+    'syntax' : doc.xpath("/html/body/div[@id='super_frame']/div[@id='monster_frame']//table/tr/td[5]"),
+    'author' : [
+        doc.xpath("/html/body/div[@id='super_frame']/div[@id='monster_frame']//table/tr/td[6]"),
+        doc.xpath("/html/body/div[@id='super_frame']/div[@id='monster_frame']//table/tr/td[6]/a")
+    ]
+}
+
+total  = len(dox['link'])
+new    = 0
+skip   = 0
+warn   = 0
+
+ai = 0 #. author index
+for i in range(total):
+    name = dox['name'][i].text.encode('utf-8')
+    expire = repr(dox['expire'][i]).encode('utf-8')
+
+    syntax = 'txt'
+    if dox['syntax'][i].text is not None: syntax = dox['syntax'][i].text
+    syntax = syntax.encode('utf-8').replace(' ', '_')
+
+    author = dox['author'][0][i]
+    if author.text is None:
+        author = dox['author'][1][ai]
+        ai += 1
+    author = author.text.encode('utf-8').replace(' ', '_')
+
+    hash_mini = dox['link'][i].strip('/')
+    hashed = md5('%s:%s:%s:%s' % (
+        hash_mini, name, author, syntax)
+    ).hexdigest()
+
+    stored = '%s/%s-%s-%s.%s' % (destination, hashed, hash_mini, author, syntax)
+    if not os.path.exists(stored):
+        try:
+            try:
+                uri = 'http://%s/raw.php?i=%s' % (
+                    pastebin, dox['link'][i].strip('/')
+                )
+                data = urllib2.urlopen(uri)
+
+                fh = open("%s.tmp" % stored, 'w')
+                fh.write("#. Title:  %s\n" % name)
+                fh.write("#. Source: %s\n" % uri)
+                fh.write("#. Time:   %s\n" % strftime('%Y%m%d-%H%M'))
+                fh.write("#. Author: %s\n" % author)
+                fh.write("#. Syntax: %s\n" % syntax)
+                fh.write("#. Expiry: %s\n" % expire)
+                fh.write("\n")
+
+                while True:
+                    subdata = data.read(CHUNK_SIZE)
+                    if subdata: fh.write(subdata)
+                    else: break
+
+                fh.close()
+                os.rename("%s.tmp" % stored, stored)
+
+                new += 1
+                sleep(3 * random() + 15)
+            except urllib2.HTTPError:
+                warn += 1
+
+        except KeyboardInterrupt:
+            try: os.unlink(stored)
+            except OSError: pass
+            e = 1
+            break
+    else:
+        skip += 1
+
+    sys.stdout.write(
+        '\r%s%s [i:%03d/%03d n:%03d s:%03d w:%03d]' % (
+            hashed, hash_mini, i+1, total, new, skip, warn
+        )
+    )
+    sys.stdout.flush()
+    sleep(0.05)
+
+sys.stdout.write("...Done\n")
+for i in range(0, skip):
+    try:
+        sys.stdout.write("\r...sleeping for %d..." % (skip - i))
+        sys.stdout.flush()
+        sleep(1)
+    except KeyboardInterrupt:
+        break
+
+sys.exit(e)

@@ -1,0 +1,20 @@
+#!/bin/bash
+e=1
+if [ $# -eq 1 ]; then
+    if [ -f $1 ]; then
+        grep -qE "^int\s*main\s*\(" $1
+        if [ $? -eq 0 ]; then
+            gcc -c -S -masm=intel $1 -o ${1/.c/.s}
+            e=0
+        else
+            gcc    -S -masm=intel $1 -o ${1/.c/.s}
+            e=0
+        fi
+    fi
+fi
+
+if [ $e -ne 0 ]; then
+    printf "Usage: %s <source.c>\n" $(basename $0)
+fi
+
+exit $e

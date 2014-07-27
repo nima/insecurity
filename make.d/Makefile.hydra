@@ -1,0 +1,9 @@
+include make.d/Makefile.header
+
+AIS_NAME    := hydra
+AIS_VERSION := 6.1
+AIS_BIN     := hydra xhydra pw-inspector
+AIS_CHECK   := README
+AIS_CONFIGURE_OPTS := --with-openssl
+
+include make.d/Makefile.footer

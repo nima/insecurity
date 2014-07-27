@@ -1,0 +1,9 @@
+include make.d/Makefile.header
+
+AIS_NAME       := zzuf
+AIS_BIN        := zzuf zzcat
+AIS_VERSION    := 0.13
+AIS_CHECK      := README
+AIS_BIN_SUBDIR := src
+
+include make.d/Makefile.footer

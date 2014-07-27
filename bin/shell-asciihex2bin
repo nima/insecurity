@@ -1,0 +1,15 @@
+#!/bin/bash
+BASENAME=$(basename $0)
+TMP=/tmp/.$$.${BASENAME}
+
+e=0
+if [ $# -eq 1 ]; then
+    echo -ne "$(echo $1|sed 's/../\\x&/g')"
+elif [ $# -eq 0 -a ! -t 0 ]; then
+    echo -ne "$(cat /dev/stdin|sed 's/../\\x&/g')"
+else
+    printf "Usage: %s <ascii-hex-bytecode>\n" ${BASENAME}
+    e=1
+fi
+
+exit $e

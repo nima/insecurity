@@ -1,0 +1,26 @@
+include make.d/Makefile.header
+
+AIS_NAME              := libptrace
+AIS_VERSION           := git
+#AIS_CONFIGURE_OPTS    := --quiet
+#AIS_MAKEFILE          := special-target
+#AIS_MAKE_OPTS         := --no-print-directory
+#AIS_EXPANDED          := t00-lame #. Some tarballs expand into an unexpected directory name
+AIS_CHECK             := README
+#AIS_SRC_SUBDIR        := fred
+AIS_BIN               := 
+#AIS_BIN_SUBDIR        := bin
+AIS_SO                := libptrace.so
+#AIS_SO_SUBDIR         := src/.libs
+#AIS_H                 := libptrace.h
+#AIS_H_SUBDIR          := include
+AIS_PREBUILD_TARGETS := prebuild
+#AIS_POSTBUILD_TARGETS := foo bar (see patching below)
+AIS_SCM               := git
+AIS_SCM_URI           := git://libptrace.git.sourceforge.net/gitroot/libptrace/libptrace
+#AID_WRAPPER           := 0
+
+include make.d/Makefile.footer
+
+prebuild:
+	cd build/$(AIS_NAME)-$(AIS_VERSION) && ./build.sh

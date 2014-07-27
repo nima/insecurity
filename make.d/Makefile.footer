@@ -1,0 +1,201 @@
+AIS_MAKE_OPTS += --no-print-directory
+
+ifeq ($(flavor AIS_MAKEFILE),undefined)
+AIS_MAKEFILE := Makefile
+else
+AIS_MAKE_OPTS += -f $(AIS_MAKEFILE)
+endif
+
+ifeq ($(flavor AIS_BIN),undefined)
+AIS_BIN := $(AIS_NAME)
+endif
+
+ifeq ($(flavor AIS_CHECK),undefined)
+AIS_CHECK := README
+endif
+
+OPTIONAL := AIS_CONFIGURE_OPTS AIS_MAKEFILE AIS_MAKE_OPTS
+OPTIONAL += AIS_PREBUILD_TARGETS AIS_POSTBUILD_TARGETS
+OPTIONAL += AIS_SRC_SUBDIR
+OPTIONAL += AIS_SCM AIS_SCM_URI
+OPTIONAL += AIS_H_SUBDIR AIS_H
+OPTIONAL += AIS_SO_SUBDIR AID_SO
+OPTIONAL += AIS_BIN_SUBDIR
+define optional
+ifneq ($(flavor $1),undefined)
+$(info Optional variable $1 has been set administratively by YOU)
+endif
+endef
+$(foreach o,$(OPTIONAL),$(call optional $o))
+
+REQUIRED := AIS_NAME AIS_VERSION AIS_CHECK
+define required
+ifeq ($(flavor $1),undefined)
+$(error Required variable $1 NOT defined)
+endif
+endef
+$(foreach r,$(REQUIRED),$(call required $r))
+
+ifeq ($(flavor AIS_CLASS),undefined)
+AIS_BIN_SOURCE := $(foreach b,$(AIS_BIN),build/$(AIS_NAME)-$(AIS_VERSION)/$(AIS_BIN_SUBDIR)/$b)
+AIS_SO_SOURCE := $(foreach s,$(AIS_SO),build/$(AIS_NAME)-$(AIS_VERSION)/$(AIS_SO_SUBDIR)/$s)
+AIS_H_SOURCE := $(foreach h,$(AIS_H),build/$(AIS_NAME)-$(AIS_VERSION)/$(AIS_H_SUBDIR)/$h)
+else
+ifeq ($(AIS_CLASS),JAVA)
+AIS_BIN_SOURCE := bin/$(AIS_BIN)
+endif
+endif
+AIS_BIN_TARGET := $(foreach b,$(AIS_BIN),$(PREFIX)/bin/$(shell basename $b))
+AIS_SO_TARGET  := $(foreach s,$(AIS_SO),$(PREFIX)/lib/$(shell basename $s))
+AIS_H_TARGET   := $(foreach h,$(AIS_H),$(PREFIX)/include/$(shell basename $h))
+
+ifneq ($(AIS_SCM),)
+define aquire
+    cd build;\
+    if [ $(AIS_SCM) == git ]; then\
+        test -d $(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM)\
+        && cd $(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM)\
+        && git pull\
+        || git clone $(AIS_SCM_URI) $(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM);\
+    elif [ $(AIS_SCM) == svn ]; then\
+        test -d $(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM)\
+        && cd $(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM)\
+        && svn up\
+        || svn co $(AIS_SCM_URI) $(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM);\
+    fi
+endef
+endif
+
+####################################################################################################
+#. Some sources will have a ./configuer that generates a Makefile
+#. Some will have Makefiles
+#. Some are Java apps, which require a wrapper shell script to be
+#. provided (by us), in such cases, the package makefile must set
+#. AIS_BIN := NOEXEC
+WORKDIR := build/$(AIS_NAME)-$(AIS_VERSION)/$(AIS_SRC_SUBDIR)
+$(AIS_BIN_SOURCE) $(AIS_SO_SOURCE):
+	@[ ! -f $(WORKDIR)/configure ]\
+		|| ( cd $(WORKDIR) && ./configure $(AIS_CONFIGURE_OPTS) ) > /dev/null 2>&1;
+	@[ ! -f $(WORKDIR)/$(AIS_MAKEFILE) ]\
+		|| ( cd $(WORKDIR) && $(MAKE) -s $(AIS_MAKE_OPTS) ) > /dev/null 2>&1;
+
+#---------------------------------------------------------------------------------------------------
+lib:
+	@echo $(AIS_SO)
+
+binary:
+	@echo $(AIS_BIN)
+
+#---------------------------------------------------------------------------------------------------
+patch: $(AIS_PREBUILD_TARGETS)
+	@echo "#### $@ $(AIS_NAME)-$(AIS_VERSION) ####"
+
+post: $(AIS_POSTBUILD_TARGETS)
+	@echo "#### $@ $(AIS_NAME)-$(AIS_VERSION) ####"
+
+#---------------------------------------------------------------------------------------------------
+AIS_SCM_TYPES += hg svn git
+
+AIS_SRC_TYPES += tar.bz2 tbz2 bz2
+AIS_SRC_TYPES += tar.gz  tgz  gz
+AIS_SRC_TYPES += tar.xz  txz  xz
+AIS_SRC_TYPES += zip 7z tar
+
+build: build/$(AIS_NAME)-$(AIS_VERSION)/$(AIS_SRC_SUBDIR) patch $(AIS_SO_SOURCE) $(AIS_BIN_SOURCE) post
+ifneq ($(strip $(AIS_BIN_SOURCE)$(AIS_SO_SOURCE)),)
+	@ls -l $(AIS_BIN_SOURCE) $(AIS_SO_SOURCE)|grep --color -E '.*'
+endif
+	@echo "#### $@ $(AIS_NAME)-$(AIS_VERSION) ####"
+
+ifeq ($(AIS_SCM),)
+AIS_SRC_FOUND := $(strip $(foreach s,$(AIS_SRC_TYPES),$(wildcard $(TARBALLZ)/$(AIS_NAME)-$(AIS_VERSION).$s)))
+else
+AIS_SRC_FOUND := build/$(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM)
+$(AIS_SRC_FOUND):
+	@$(call aquire)
+endif
+
+build/$(AIS_NAME)-$(AIS_VERSION)/$(AIS_SRC_SUBDIR): build/$(AIS_NAME)-$(AIS_VERSION)/$(AIS_CHECK)
+build/$(AIS_NAME)-$(AIS_VERSION)/$(AIS_CHECK): $(AIS_SRC_FOUND)
+ifneq ($(AIS_EXPANDED),)
+ifneq ($(AIS_EXPANDED),$(AIS_NAME)-$(AIS_VERSION))
+	@ln -sf $(AIS_EXPANDED) build/$(AIS_NAME)-$(AIS_VERSION)
+endif
+endif
+ifeq ($(AIS_SCM),)
+	@$(call extract,$<)
+else
+	@test -h build/$(AIS_NAME)-$(AIS_VERSION) || ln -s $(<F) build/$(AIS_NAME)-$(AIS_VERSION)
+endif
+
+#---------------------------------------------------------------------------------------------------
+check: $(AIS_SRC_FOUND)
+ifeq ($(AIS_SCM),)
+	@test -f $<\
+		&& printf "$(AIS_PASS) %s v%s\n" "SH" $(AIS_NAME) $(AIS_VERSION)\
+		|| printf "$(AIS_FAIL) %s v%s\n" "sm" $(AIS_NAME) $(AIS_VERSION)
+else
+	@test -d build/$(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM)
+		&& printf "$(AIS_PASS) %s v%s\n" "SH" $(AIS_NAME) $(AIS_VERSION)\
+		|| printf "$(AIS_FAIL) %s v%s\n" "sm" $(AIS_NAME) $(AIS_VERSION)
+endif
+	@test -e $@
+
+#---------------------------------------------------------------------------------------------------
+purge:
+	@echo "#### $@ $(AIS_NAME)-$(AIS_VERSION) ####"
+ifneq ($(AIS_EXPANDED),)
+	@rm -rf build/$(AIS_EXPANDED)
+endif
+ifeq ($(AIS_SCM),)
+	@rm -rf build/$(AIS_NAME)-$(AIS_VERSION)
+else
+	@rm -rf build/$(AIS_NAME)-$(AIS_VERSION).$(AIS_SCM)
+endif
+ifneq ($(AIS_PREBUILD_TARGETS),)
+	@rm -f $(AIS_PREBUILD_TARGETS)
+endif
+
+#---------------------------------------------------------------------------------------------------
+clean:
+	@echo "#### $@ $(AIS_NAME)-$(AIS_VERSION) ####"
+
+.PHONY: build clean purge extract patch binary lib check
+####################################################################################################
+install: $(AIS_SO_TARGET) $(AIS_H_TARGET) $(AIS_BIN_TARGET)
+ifeq ($(AIS_CLASS),JAVA)
+	@mkdir -p $(PREFIX)/libexec/$(AIS_NAME)
+	@install $(AIS_BIN_SOURCE) $(AIS_BIN_TARGET)
+	@rsync -a $(WORKDIR)/ $(PREFIX)/libexec/$(AIS_NAME)-$(AIS_VERSION)/
+endif
+ifeq ($(AIS_WRAPPER),1)
+	@install bin/$(AIS_NAME) $(PREFIX)/bin/$(AIS_NAME)
+endif
+	@echo "#### $@ $(AIS_NAME)-$(AIS_VERSION) ####"
+
+$(AIS_BIN_TARGET): $(AIS_BIN_SOURCE)
+ifeq ($(flavor AIS_CLASS),undefined)
+	@mkdir -p $(@D)
+	@$(foreach b,$^,install $b $(@D);)
+	@$(foreach b,$(AIS_BIN_TARGET),ln -sf $b /opt/bin/;)
+endif
+$(AIS_SO_TARGET): $(AIS_SO_SOURCE)
+ifeq ($(flavor AIS_CLASS),undefined)
+	@mkdir -p $(@D)
+	@$(foreach s,$^,install -m 555 $s $(@D);)
+endif
+$(AIS_H_TARGET): $(AIS_H_SOURCE)
+ifeq ($(flavor AIS_CLASS),undefined)
+	@mkdir -p $(@D)
+	@$(foreach h,$^,install -m 444 $h $(@D);)
+endif
+
+
+#---------------------------------------------------------------------------------------------------
+uninstall:
+	@echo "#### $@ $(AIS_NAME)-$(AIS_VERSION) ####"
+	@rm -f $(PREFIX)/bin/$(AIS_NAME)
+	@rm -rf $(PREFIX)/libexec/$(AIS_NAME)-$(AIS_VERSION)/
+
+.PHONY: install uninstall
+####################################################################################################

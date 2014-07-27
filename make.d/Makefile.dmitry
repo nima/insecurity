@@ -1,0 +1,7 @@
+include make.d/Makefile.header
+
+AIS_NAME              := DMitry
+AIS_VERSION           := 1.3a
+AIS_BIN               := dmitry
+
+include make.d/Makefile.footer

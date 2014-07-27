@@ -1,0 +1,7 @@
+include make.d/Makefile.header
+
+AIS_NAME    := tcptraceroute
+AIS_VERSION := 1.5beta7
+AIS_CHECK   := README
+
+include make.d/Makefile.footer

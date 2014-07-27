@@ -1,0 +1,3 @@
+pamtester, chattr immutable, noexec, nosuid, nodev - on all removable media
+sparse files:
+dd if=/dev/null of=sparse-file bs=1k seek=1024000000

@@ -1,0 +1,60 @@
+#!/usr/bin/env python
+"""Hexify ASCII text, suitable for inserting into a URI"""
+
+import sys
+from os.path import basename
+from getopt import getopt, GetoptError
+
+def usage():
+  sys.stdout.write("Usage: %s <string-to-encode/decode>\n"%basename(sys.argv[0]))
+
+args = None
+try:
+  opts, args = getopt(sys.argv[1:], "hxdsc", ["help", "hex", "decode", "preserve-slashes", "enc-to-char-code"])
+except GetoptError:
+  usage()
+  sys.exit(2)
+
+slashes = False
+encode = True
+e2cc = False
+hex_only = False
+for opt, arg in opts:
+  if opt in ("-h", "--help"):
+    usage()
+    sys.exit()
+  elif opt in ("-x", "--hex"):
+    hex_only = True
+  elif opt in ("-s", "--preserve-slashes"):
+    slashes = True
+  elif opt in ("-d", "--decode"):
+    encode = False
+  elif opt in ("-c", "--enc-to-char-code"):
+    e2cc = True
+
+input = None
+if len(args):
+  input = " ".join(args)
+elif not sys.stdin.isatty():
+  input = sys.stdin.read()
+else:
+  sys.exit(1)
+
+if input:
+  if e2cc:
+    sys.stdout.write("<script>printf(String.fromCharCode(%s))</script>\n"%(",".join(["%d"%ord(_) for _ in input])))
+  elif encode:
+    uri = None
+    if hex_only:
+        uri = ''.join(["%02x"%ord(_) for _ in input])
+    else:
+        uri = '%'+'%'.join(["%02x"%ord(_) for _ in input])
+    if slashes: uri = uri.replace('%2f', '/')
+    sys.stdout.write(uri+'\n')
+  else:
+    decode = []
+    for _ in input.split('%'):
+      if len(_) == 2: decode.append(chr(int(_, 0x10)))
+      elif len(_) > 2: decode.append(chr(int(_[0:2], 0x10))+_[2:])
+      else: decode.append(_)
+    sys.stdout.write("%s\n"%"".join(decode))

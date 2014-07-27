@@ -1,0 +1,34 @@
+include make.d/Makefile.header
+
+AIS_NAME             := eresi
+
+AIS_VERSION          := svn
+AIS_CHECK            := README.FIRST
+AIS_CONFIGURE_OPTS   := --enable-32-64
+#AIS_MAKEFILE         := special-target
+#AIS_MAKE_OPTS        := --no-print-directory
+#AIX_EXPANDED         := t00-lame #. Some tarballs expand into an unexpected directory name
+#AIS_SRC_SUBDIR       := src
+AIS_BIN              := elfsh/elfsh64 elfsh/elfsh32 etrace/etrace64 etrace/etrace32
+AIS_BIN              += evarista/evarista32 evarista/evarista64 e2dbg/e2dbg64 e2dbg/e2dbg32
+AIS_BIN              += kedbg/kedbg64 kedbg/kedbg32
+#AIS_BIN_SUBDIR       := bin
+AIS_SO               := libetrace/libetrace32.so libetrace/libetrace64.so libaspect/libaspect32.so libaspect/libaspect64.so
+AIS_SO               += libui/libui32.so libui/libui64.so libedfmt/libedfmt64.so libedfmt/libedfmt32.so
+AIS_SO               += modules/modtest64.so modules/modremap64.so
+AIS_SO               += librevm/librevm64.so librevm/librevm32.so libelfsh/libelfsh64.so libelfsh/libelfsh32.so
+AIS_SO               += libgdbwrap/libgdbwrap64.so libgdbwrap/libgdbwrap32.so libmjollnir/libmjollnir32.so libmjollnir/libmjollnir64.so
+AIS_SO               += libasm/libasm64.so libasm/libasm32.so
+AIS_SO               += libstderesi/libstderesi64.so libstderesi/libstderesi32.so libe2dbg/libe2dbg64.so libe2dbg/libe2dbg32.so
+#AIS_SO_SUBDIR        := lib
+AIS_SCM              := svn
+AIS_SCM_URI          := http://svn.eresi-project.org/svn/trunk/
+
+include make.d/Makefile.footer
+
+################################################################################
+#. Patching via AIS_PREBUILD_TARGETS
+#foo:
+#	stuff
+#bar:
+#	more-stuff

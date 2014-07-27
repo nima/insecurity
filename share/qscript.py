@@ -1,0 +1,6 @@
+mode("debug")
+allhosts = ','.join(hosts())
+#fH = open("/tmp/data.csv", 'w')
+#data = report(1060966, 'csv', allhosts)
+#fH.write(str(data))
+#fH.close()

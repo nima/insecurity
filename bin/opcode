@@ -1,0 +1,7 @@
+#!/bin/bash
+while read hex; do
+    hex=\\x${hex// /\\x}
+    echo -ne $hex > /tmp/disasm.tmp
+    objdump -D -b binary -m i386 /tmp/disasm.tmp
+    rm /tmp/disasm.tmp
+done

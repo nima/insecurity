@@ -1,0 +1,27 @@
+class ANSIColourText:
+  def __init__(self):
+    self.boldred='\033[1;31m'
+    self.darkred='\033[0;31m'
+    self.boldgreen='\033[1;32m'
+    self.darkgreen='\033[0;32m'
+    self.boldyellow='\033[1;33m'
+    self.darkyellow='\033[0;33m'
+    self.boldblue='\033[1;34m'
+    self.darkblue='\033[0;34m'
+    self.boldpink='\033[1;35m'
+    self.darkpink='\033[0;35m'
+    self.boldcyan='\033[1;36m'
+    self.darkcyan='\033[0;36m'
+
+    self.boldwhite='\033[1;37m'
+    self.boldblack='\033[1;30m'
+    self.grey='\033[0;37m'
+    self.normal='\033[0;39m'
+
+    self.hlred='\033[1;41m'
+    self.hlgreen='\033[1;42m'
+    self.hlorange='\033[1;43m'
+    self.hlblue='\033[1;44m'
+    self.hlpink='\033[1;45m'
+    self.hlcyan='\033[1;46m'
+    self.hlgrey='\033[1;47m'

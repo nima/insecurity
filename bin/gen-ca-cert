@@ -1,0 +1,68 @@
+#!/usr/bin/make
+CERT_SIZE=4096
+ENCRYPT=YES
+METHOD=CACERT
+DAYS=1461
+CERT_PASSWD=""
+
+ifndef CERT
+$(error "You need to set the CERT environment variable first.")
+endif
+ifeq ($(origin CERT_SIZE),environment)
+$(warning "Usingedefault CERT_SIZE of $(CERT_SIZE).")
+endif
+
+#. See http://www.openssl.org/support/faq.html#USER1
+export RANDFILE = /dev/urandom
+
+.PHONY: all purge
+
+
+
+################################################################################
+#. CAcert...
+ifeq ($(METHOD),CACERT)
+all: $(CERT).csr
+
+$(CERT).csr: $(CERT).key $(CERT).cnf
+	openssl req -new -config $(CERT).cnf -key $< -out $@ -days $(DAYS)
+
+$(CERT).key:
+ifeq ($(ENCRYPT),YES)
+	openssl genrsa -out $@ $(CERT_SIZE)
+else
+	openssl genrsa -des3 -out $@ $(CERT_SIZE)
+endif
+
+install: $(CERT).key $(CERT).crt
+	sudo cp $(CERT).{crt,key} /etc/apache2/ssl/
+
+endif
+
+################################################################################
+#. Self-signed...
+ifeq ($(METHOD),SELFSIGNED)
+all: $(CERT).crt
+
+ifndef CERT_PASSWD
+$(error "You need to set the CERT_PASSWD environment variable first.")
+endif
+
+$(CERT).crt: $(CERT).key $(CERT).csr $(CERT).cnf
+	openssl x509 -req -days $(DAYS) -in $(CERT).csr -signkey $(CERT).key -out $@
+
+$(CERT).csr: $(CERT).key $(CERT).cnf
+	openssl req -new -config $(CERT).cnf -key $< -out $@
+
+$(CERT).key: $(CERT).key.pp $(CERT).cnf
+	openssl rsa -passin pass:$(CERT_PASSWD) -in $< -out $@
+	chmod 0400 $@
+
+$(CERT).key.pp: $(CERT).cnf
+	openssl genrsa -passout pass:$(CERT_PASSWD) -des3 -out $@ $(CERT_SIZE)
+
+endif
+
+purge:
+	rm -f $(CERT).{key,key.pp,csr,crt,req,pem}
+

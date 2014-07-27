@@ -1,0 +1,13 @@
+include make.d/Makefile.header
+
+AIS_NAME             := atomicles
+AIS_VERSION          := scm
+AIS_MAKE_OPTS        := --no-print-directory
+AIS_CHECK            := doc/README
+AIS_SRC_SUBDIR       := src
+AIS_BIN_SUBDIR       := src
+AIS_BIN              := daemonize lock syschk ia32emu atomicles
+AIS_SCM              := git
+AIS_SCM_URI          := git://git.autonomy.net.au/atomicles
+
+include make.d/Makefile.footer

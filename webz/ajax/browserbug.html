@@ -1,0 +1,44 @@
+<html>
+    <head>
+        <script type="text/javascript">
+            //. Is the client browser able to resolve `window':
+            console.log('\nWindow Object Resolution');
+            var fnz = new Array('sort', 'reverse', 'valueOf', 'concat');
+            for(i in fnz) {
+                msg = 'window<-'+fnz[i]+'...';
+                if([[][(fnz[i])]]['eval']) console.log(msg+'PASS');
+                else console.log(msg+'FAIL');
+            }
+
+            console.log('\nWIP');
+            console.log([]);
+            console.log([].sort);
+            console.log([].sort.eval);
+            console.log([].sort.call);
+
+            console.log([].sort());
+            //console.log([].sort.eval());
+            //console.log([].sort.call());
+
+            xsort=(function(){return this})
+            console.log(xsort()['alert']);
+
+            xwindow=(function(){return this;})();
+            console.log(xwindow['alert']);
+
+            //console.log([].sort.call().alert);
+            //console.log([].sort().alert);
+
+            console.log('\nTL Objects');
+            window['eval']('console.log("window[eval]...PASS")');
+            this['eval']('console.log("this[eval]...PASS")');
+            top['eval']('console.log("top[eval]...PASS")');
+
+            //. alert(typeof blah) instead of alert(blah)
+        </script>
+    </head>
+    </body>
+        See firebug console messages for results.
+    </body>
+</html>
+

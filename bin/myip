@@ -1,0 +1,2 @@
+#!/bin/bash
+wget -q -O- https://secure.internode.on.net/webtools/showmyip?textonly=1

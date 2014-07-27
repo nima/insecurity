@@ -1,0 +1,11 @@
+#!/bin/bash
+DATAZ=/srv/autonomy/insecurity/data
+mkdir -p /tmp/geoipdata
+
+ln -sf /usr/share/GeoIP/GeoIP.dat /tmp/geoipdata/
+#geoiplookup -d /tmp/geoipdata -f /tmp/geoipdata/GeoIP.dat -v $*
+geoiplookup -d /tmp/geoipdata -f /tmp/geoipdata/GeoIP.dat $*
+
+ln -sf ${DATAZ}/GeoLiteCity.dat /tmp/geoipdata/
+#geoiplookup -d /tmp/geoipdata -f /tmp/geoipdata/GeoLiteCity.dat -v $*
+geoiplookup -d /tmp/geoipdata -f /tmp/geoipdata/GeoLiteCity.dat $*

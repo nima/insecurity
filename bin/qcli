@@ -1,0 +1,587 @@
+#!/opt/bin/python -i
+#. ******* coding:utf-8 AUTOHEADER START v1.3 *******
+#. vim: fileencoding=utf-8 syntax=python sw=4 ts=4 et
+#.
+#. © 2007-2011 Nima Talebi <nima at autonomy dot net dot au>
+#.                         <nt at securusglobal dot com dot au>
+#.
+#. $HeadURL::                                                                  $
+#. $LastChangedBy::                                                            $
+#. $LastChangedDate::                                                          $
+#. $LastChangedRevision::                                                      $
+#. $                                                                           $
+#. $AutoHeaderSerial::20110315                                                 $
+#.
+#. This file is part of the Insecurity Suite.
+#.
+#.     Insecurity is free software: you can redistribute it and/or modify
+#.     it under the terms of the GNU General Public License as published by
+#.     the Free Software Foundation, either version 3 of the License, or
+#.     (at your option) any later version.
+#.
+#.     Insecurity is distributed in the hope that it will be useful,
+#.     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#.     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#.     GNU General Public License for more details.
+#.
+#.     You should have received a copy of the GNU General Public License
+#.     along with Insecurity.  If not, see <http://www.gnu.org/licenses/>.
+#.
+#. THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#. WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#. MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#. EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+#. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+#. LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+#. PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+#. LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+#. OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#. ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#.
+#. ADAPTED M. STONE & T. PARKER DISCLAIMER: THIS SOFTWARE COULD RESULT IN INJURY
+#. AND/OR DEATH, AND AS SUCH, IT SHOULD NOT BE BUILT, INSTALLED OR USED BY ANYONE.
+#. ******* AUTOHEADER END v1.3 *******
+
+VERSION = "0.3"
+
+import sys, os
+from sys import stdout, stderr
+sys.path.append("/opt/autonomy/insecurity/pylib")
+
+historyPath = ".qcli_history"
+CONFIG = ".qcli"
+red = lambda(s):s
+blue = lambda(s):s
+green = lambda(s):s
+if hasattr(os, 'uname'):
+    historyPath = os.path.expanduser("~/.qcli_history")
+    historyPath = os.path.expanduser("~/.qcli_history")
+    CONFIG = os.path.expanduser(os.path.join("~", ".qcli"))
+    from ANSI import red, blue, green
+
+try:
+    from getpass import unix_getpass as getpass, GetPassWarning
+    import traceback, re
+
+    from qapi import QAPIData, REALMS
+    from qapi import QAPIError, QAPIHTTPError, QAPIInteralError
+    from qapi import QAPILocalValidationError, QAPISessionTimeoutError
+    from qapi import QAPIBadAPICallError
+
+    from code import InteractiveConsole
+except ImportError, e:
+    stdout.write("Failed to load module: %s.\n" % e)
+    os._exit(1)
+
+READLINE = True
+try:
+    import readline
+except ImportError, e:
+    READLINE = False
+
+class QAPIBadCLICallError(QAPIError):
+    def __init__(self, fmt, *args):
+        QAPIError.__init__(self, fmt, *args)
+        self.message = "QAPI Bad CLI Call: %s" % self.message
+
+class QCLI(InteractiveConsole):
+    def __init__(self, username, realm, config, *args, **kwargs):
+        InteractiveConsole.__init__(self, *args, **kwargs)
+        self._version = VERSION
+        self._buffer = None #. Debugging purposes only
+        self._template_types = {
+            'Scan'        : ['report'],
+            'Map'         : [],
+            'Remediation' : ['report'],
+            'Compliance'  : [],
+            'Policy'      : [],
+            'Patch'       : ['report'],
+        }
+        self._script_mode = False
+        self._api_mode = False
+        self._prompt_color = red
+
+        if READLINE:
+            stdout.write("Setting up %s..." % red("user interface"))
+            stdout.flush()
+            import rlcompleter
+            readline.parse_and_bind('tab: complete')
+            stdout.write("%s\n" % green("DONE"))
+
+        stdout.write(
+            "Preparing %s (QualysGuard CLI) v%s..." % (
+                red("QCLI"),
+                red(self._version),
+            )
+        )
+        from qapi import QualysGuard
+        stdout.write("%s\n" % green("DONE"))
+
+        stdout.write("Loading %s (QualysGuard API)..." % blue("QAPI"))
+        self._qapi = QualysGuard(username, realm, config, debug=False)
+        stdout.write("%s [v%s]\n" % (green("DONE"), blue(self._qapi.version())))
+
+        self.locals['_qcli'] = self
+        self.locals['_qapi'] = self._qapi
+        self.locals['_buffer'] = self._buffer
+        self._set_prompt()
+
+        self._helpers = {
+            'help'          : None,
+            'mode'          : [ 'script|debug|api', 'on|off|status' ],
+            'hosts'         : None,
+            'report'        : [
+                '<report-template-id>',
+                'csv|pdf|xml',
+                '<host>|<host-range>'
+            ],
+            'templates'     : [ 'scan|remediation|patch' ],
+            'knowledgebase' : None,
+            'vulnz'         : [ '<report-object>' ],
+            'quit'          : None,
+            'exit'          : None,
+        }
+        self._cache = {
+            'templates'     : dict(),
+            'knowledgebase' : dict(),
+            'reports'       : dict(),
+            'hosts'         : list(),
+        }
+
+    def _set_prompt(self):
+        if self._script_mode:
+            sys.ps1 = ''
+            sys.ps2 = ''
+        else:
+            c = red
+            if self._api_mode: c = blue
+
+            s = '%'
+            if self._qapi.debug(): s = '#'
+
+            sys.ps1 = c("qcli%s " % s)
+            sys.ps2 = c(" ...%s " % s)
+
+    def logout(self):
+        stdout.write("Disconnecting from %s..." % red("Qualys"))
+        if READLINE:
+            readline.write_history_file(historyPath)
+
+        try:
+            qcli._qapi.logout()
+        except QAPIHTTPError, e:
+            '''Session has already timed out'''
+        stdout.write("Done\n")
+
+    def login(self, username):
+        #def gtfo(historyPath = historyPath):
+        #import atexit
+        #atexit.register(gtfo)
+
+        if READLINE and os.path.exists(historyPath):
+            readline.read_history_file(historyPath)
+
+        while not self._qapi.connected():
+            try:
+                password = self._qapi.getpass()
+                if not password:
+                    password = getpass('password: ')
+
+                try:
+                    stdout.write("Connecting to %s..." % red("Qualys"))
+                    if self._qapi.login(username, password):
+                        stdout.write("Done [sid %s]\n" % self._qapi.sessionid())
+                    else:
+                        password = False
+                        stdout.write("Failed\n")
+                    if self._qapi.is_proxied():
+                        stdout.write(
+                            " \___Connection established via HTTP proxy\n"
+                        )
+
+                except QAPIHTTPError, e:
+                    stdout.write("Failed\n")
+                    stdout.write(" \___%s\n" % e)
+                except KeyboardInterrupt:
+                    stdout.write("Failed (User Cancelled)\n")
+                    os._exit(0)
+
+            except GetPassWarning:
+                stderr.write(
+                    "Sorry, impossible to collect password securely.\n"
+                )
+            except EOFError:
+                stderr.write("Quit\n")
+                os._exit(0)
+
+    def xpath(element):
+        '''
+        Returns the xpath to any given lxml.etree._Element object
+        '''
+        xpath = []
+        while element is not None:
+            xpath.append(element)
+            element = element.getparent()
+        xpath.reverse()
+        return '/'+'/'.join([_.tag for _ in xpath])
+
+    def _helper_scorecard(self):
+        doc = self._qapi.scorecard(action='list', output_mode='full')
+
+    def _helper_appliances(self):
+        doc = self._qapi.appliance(action='list', output_mode='full')
+        hosts = doc.xpath('/RESPONSE/APPLIANCE_LIST/APPLIANCE')
+        return [_.text for _ in hosts]
+
+    def _helper_hosts(self, force=False):
+        if not self._cache.get('hosts') or force:
+            doc = self._qapi.asset('ip', action='list')
+            hosts = doc.xpath('/IP_LIST_OUTPUT/RESPONSE/IP_SET/IP')
+            ranges = doc.xpath('/IP_LIST_OUTPUT/RESPONSE/IP_SET/IP_RANGE')
+            self._cache['hosts'] = [_.text for _ in hosts+ranges]
+        return self._cache['hosts']
+
+    def _helper_knowledgebase(self, force=False):
+        if not self._cache['knowledgebase'] or force:
+            self._cache['knowledgebase'] = self._qapi.knowledgebase()
+        return QAPIData(self._cache['knowledgebase'])
+
+    def _helper_templates(self, template_type=None, force=False):
+        if not self._cache['templates'] or force:
+            templates = self._qapi.templates().xpath(
+                '/REPORT_TEMPLATE_LIST/REPORT_TEMPLATE'
+            )
+
+            data = list()
+            for template in templates:
+                subdata = {}
+                for item in template.iterchildren():
+                    subdata[item.tag] = item
+                data.append(subdata)
+
+            for template in data:
+                tid = int(template['ID'].text)
+                self._cache['templates'][tid] = dict()
+                for key in [ 'TYPE', 'TEMPLATE_TYPE', 'TITLE']:
+                    self._cache['templates'][tid][key] = template[key].text
+
+        r = None
+        if template_type is None:
+            #. All templates
+            r = self._cache['templates']
+        elif template_type.capitalize() in self._template_types.keys():
+            r = dict()
+            template_type = template_type.capitalize()
+            for tid in self._cache['templates']:
+                tT = self._cache['templates'][tid]['TEMPLATE_TYPE']
+                if tT == template_type:
+                    r[tid] = self._cache['templates'][tid]
+        else:
+            raise QAPIBadCLICallError()
+        return QAPIData(r)
+
+    def _helper_report(self, tid, output_format, target, force=False):
+        '''
+        Works for the following (ticked) template types:
+            [_] Compliance
+            [_] Map
+            [/] Scan
+            [/] Remediation
+            [/] Patch
+        '''
+
+        index = "%s-%s" % (tid, output_format)
+        try:
+            tid = int(tid)
+        except ValueError, e:
+            raise QAPIBadCLICallError("Invalid template ID: %s", tid)
+
+        if self._cache['reports'].get(index) is None or force:
+            success = False
+            template_type = None
+            template = self._helper_templates().get(tid)
+            if template is not None:
+                template_type = template['TEMPLATE_TYPE']
+                if 'report' in self._template_types[template_type]:
+                    success = True
+                else:
+                    stderr.write(
+                        "%s templates do not generate reports\n" % (
+                            template['TEMPLATE_TYPE']
+                        )
+                    )
+            else:
+                raise QAPIBadCLICallError("No such template ID: %s", tid)
+
+            doc = None
+            if success is True:
+                #. 1/4 Kick off the task...
+                try:
+                    if target.count('-') == 1:
+                        doc = self._qapi.report(
+                            action='launch',
+                            output_format=output_format,
+                            template_id=tid,
+                            asset_group_ids=target
+                        )
+                    else:
+                        doc = self._qapi.report(
+                            action='launch',
+                            output_format=output_format,
+                            template_id=tid,
+                            ips=target
+                        );
+                except QAPIHTTPError, e:
+                    stdout.write("%s\n" % e)
+                    success = False
+
+            if success is True:
+                #. 2/4 Get a receipt...
+                data = doc.xpath('/SIMPLE_RETURN/RESPONSE/ITEM_LIST/ITEM/VALUE')
+                rid = data[0].text
+
+                #. 3/4 Wait for the results...
+                success = None
+                while success is None:
+                    doc = self._qapi.report(
+                        action='list',
+                        id=rid
+                    )
+                    data = doc.xpath(
+                        '/REPORT_LIST_OUTPUT/RESPONSE/REPORT_LIST/REPORT/STATUS/STATE'
+                    )
+                    if data:
+                        state = data[0].text
+                        print state,
+                        if state == 'Running':
+                            percent = doc.xpath(
+                                '/REPORT_LIST_OUTPUT/RESPONSE/REPORT_LIST/REPORT/STATUS/PERCENT'
+                            )[0].text
+                            print percent+'%'
+                        elif state == 'Finished':
+                            success = True
+                            print '100%'
+                        else:
+                            success = True
+                            print 'Not Implemented'
+
+            #. 4/4 Fetch the results...
+            if success is True:
+                doc = self._qapi.report(
+                    action='fetch',
+                    id=rid
+                )
+
+            self._cache['reports'][index] = doc
+        else:
+            doc = self._cache['reports'][index]
+
+        return doc
+
+    def _helper_vulnz(self, report):
+        vulnz = report.xpath('/ASSET_DATA_REPORT/GLOSSARY/VULN_DETAILS_LIST/VULN_DETAILS')
+        for vuln in vulnz:
+            print('='*80)
+            print vuln.tag
+            for node in vuln:
+                if node.tag in ['QID', 'TITLE', 'SEVERITY', 'CATEGORY']:
+                    print(" \___%-20s: %s" % (node.tag, vuln.find(node.tag).text))
+                elif node.tag in ('CVE_ID_LIST', 'BUGTRAQ_ID_LIST'):
+                    print(node.tag)
+                    for item in node:
+                        for iid in [ 'ID', 'URL' ]:
+                            print('    \___%-15s: %s' % (
+                                item.tag+' '+iid,
+                                item.find(iid).text
+                            ))
+                elif node.tag in ('CORRELATION'):
+                    print(node.tag)
+                    exploits = node.findall('EXPLOITABILITY/EXPLT_SRC/EXPLT_LIST/EXPLT')
+                    for exploit in exploits:
+                        for item in exploit:
+                            print('    \___%-15s: %s' % (
+                                item.tag+' '+iid,
+                                item.text
+                            ))
+        #raise QAPIBadCLICallError("No such template ID")
+
+
+    def _helper_help(self, cmd=None):
+        if cmd in self._helpers.keys():
+            if self._helpers[cmd]:
+                print("Usage: %s %s" % (
+                    cmd, ' '.join(self._helpers[cmd])
+                ))
+            else:
+                print("This command takes no arguments.")
+        else:
+            if cmd is not None:
+                print("Invalid command. Valid commands:")
+
+            for cmd in self._helpers.keys():
+                if self._helpers[cmd]:
+                    print("    %s %s" % (
+                        cmd, ' '.join(self._helpers[cmd])
+                    ))
+                else:
+                    print("    %s" % cmd)
+
+    def _helper_exit(self):
+        self.logout()
+        os._exit(0)
+
+    def _helper_quit(self):
+        self.exit()
+
+    def _helper_mode(self, mode, switch=None):
+        if mode == 'api':
+            if switch != 'status':
+                if switch is None:
+                    switch = not self._api_mode
+                elif switch in ('on', '1'):
+                    switch = True
+                elif switch in ('off', '0'):
+                    switch = False
+                else:
+                    raise QAPIBadCLICallError(
+                        "Valid switches: on|off|0|1, not %s" % switch
+                    )
+
+                self._api_mode = switch
+                if self._api_mode:
+                    for h in self._helpers.keys():
+                        self.locals[h] = getattr(self, '_helper_%s' % h)
+                else:
+                    for h in self._helpers.keys():
+                        try:
+                            self.locals.pop('_helper_%s' % h)
+                        except KeyError:
+                            pass
+
+            self._set_prompt()
+            stdout.write("API is %s\n" % (switch and "Exposed" or "Concealed"))
+
+        elif mode == 'debug':
+            if switch != 'status':
+                if switch is None:
+                    switch = not self._qapi.debug()
+                elif switch in ('on', '1'):
+                    switch = True
+                elif switch in ('off', '0'):
+                    switch = False
+                else:
+                    raise QAPIBadCLICallError(
+                        "Valid switches: on|off|0|1, not %s" % switch
+                    )
+
+                import logging
+                if switch:
+                    logging.basicConfig(level=logging.DEBUG)
+                else:
+                    logging.basicConfig(level=logging.NOTSET)
+
+                self._qapi.set_debug(switch)
+
+            self._set_prompt()
+            stdout.write("Debugging is %s\n" % (switch and "On" or "Off"))
+
+        elif mode == 'script':
+            if switch != 'status':
+                if switch is None:
+                    switch = not self._api_script
+                elif switch in ('on', '1'):
+                    switch = True
+                    self._helper_mode("api", "on")
+                elif switch in ('off', '0'):
+                    switch = False
+                    self._helper_mode("api", "off")
+                else:
+                    raise QAPIBadCLICallError(
+                        "Valid switches: on|off|0|1, not %s" % switch
+                    )
+                self._script_mode = switch
+
+            self._set_prompt()
+
+        else:
+            raise QAPIBadCLICallError(
+                "Valid modes: api|debug, not %s" % mode
+            )
+
+    def raw_input(self, prompt="xxx"):
+        line = InteractiveConsole.raw_input(self, prompt)
+        fn = None
+        if line.strip():
+            argv = line.split()
+            cmd = argv.pop(0)
+            try:
+                fn = getattr(self, '_helper_%s' % cmd)
+            except QAPIBadCLICallError, e:
+                print("Error: %s" % e)
+            except TypeError, e:
+                print("Error: %s" % e)
+                self._helper_help(cmd)
+            except AttributeError, e:
+                if self._api_mode:
+                    return line
+                else:
+                    print("Error: %s" % e)
+                    self._helper_help()
+
+        if fn:
+            if len(argv): print(str(fn(*argv)))
+            else: print(str(fn()))
+
+        return ''
+
+if __name__ == '__main__':
+    success = False
+    username = None
+    password = None
+    realm_id = None
+    profile  = None
+    config   = CONFIG
+
+    if len(sys.argv) >= 2:
+        profile = sys.argv[1]
+        if len(sys.argv) == 3:
+            config = sys.argv[2]
+
+        if os.path.exists(config):
+            username, realm_id = profile.split('@')
+            if realm_id not in REALMS:
+                realm_id = None
+                stderr.write(
+                    "Sorry, %s is not a valid Qualys realm.\n" % realm_id
+                )
+
+            if username and realm_id in REALMS:
+                qcli = QCLI(username, realm_id, config)
+                if not os.isatty(0):
+                    qcli._helper_mode("script", "on")
+
+                try:
+                    qcli.login(username)
+                    qcli.interact(
+                        'Launching the QualysGuard Shell (qcli) v%s...' % (
+                            VERSION
+                        )
+                    )
+                    qcli.logout()
+                    os._exit(0)
+                except QAPISessionTimeoutError, e:
+                    stderr.write("Failed: %s\n" % e)
+                    os._exit(1)
+            else:
+                print "Usage: %s <user>@<qualys-realm> [<qapi-ini-path>]" % (
+                    os.path.basename(sys.argv[0])
+                )
+                os._exit(1)
+        else:
+            stderr.write("Sorry, missing %s.\n" % config)
+    else:
+        print "Usage: %s <username>@<qualys-realm>" % (
+            os.path.basename(sys.argv[0])
+        )
+        os._exit(0)
+

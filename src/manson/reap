@@ -1,0 +1,339 @@
+#!/bin/bash
+#. ******* coding:utf-8 AUTOHEADER START v1.3 *******
+#. vim: fileencoding=utf-8 sw=4 ts=4 et
+#.
+#. © 2007-2011 Nima Talebi <nima at autonomy dot net dot au>
+#.                         <nt at securusglobal dot com dot au>
+#.
+#. $HeadURL::                                                                  $
+#. $LastChangedBy::                                                            $
+#. $LastChangedDate::                                                          $
+#. $LastChangedRevision::                                                      $
+#. $                                                                           $
+#. $AutoHeaderSerial::20110315                                                 $
+#.
+#. This file is part of the Insecurity Suite.
+#.
+#.     Insecurity is free software: you can redistribute it and/or modify
+#.     it under the terms of the GNU General Public License as published by
+#.     the Free Software Foundation, either version 3 of the License, or
+#.     (at your option) any later version.
+#.
+#.     Insecurity is distributed in the hope that it will be useful,
+#.     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#.     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#.     GNU General Public License for more details.
+#.
+#.     You should have received a copy of the GNU General Public License
+#.     along with Insecurity.  If not, see <http://www.gnu.org/licenses/>.
+#.
+#. THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#. WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#. MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#. EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+#. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+#. LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+#. PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+#. LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+#. OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#. ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#.
+#. ADAPTED M. STONE & T. PARKER DISCLAIMER: THIS SOFTWARE COULD RESULT IN INJURY
+#. AND/OR DEATH, AND AS SUCH, IT SHOULD NOT BE BUILT, INSTALLED OR USED BY ANYONE.
+#. ******* AUTOHEADER END v1.3 *******
+
+source manson.conf
+################################################################################
+#. Main:
+
+RR_INIT_D=/unknown
+if [ -f /etc/redhat_release ]; then #. Check this - it's wong and i have no RHEL/Fedora here to check
+    RR_INIT_D=/etc/rc.d/init.d
+elif [ -f /etc/debian_version ]; then
+    RR_INIT_D=/etc/init.d
+elif [ -f /etc/arch-release ]; then
+    RR_INIT_D=/etc/rc.d
+fi
+
+RR_HOSTNAME=$(hostname -s 2>/dev/null)
+RR_FQDN=$(hostname -f 2>/dev/null)
+FQDN=${FQDN:=${RR_FQDN}}
+RR_DATA=/tmp/reaper/${FQDN}
+RR_CMDS=/tmp/reaper/${FQDN}/index
+RR_DMIDATA=${RR_DATA}/dmidata
+RR_LOG_BELLS=( fatal crit alert error warn )
+#print "$'%s'" % ''.join("\\x%x"%ord(_) for _ in profanity)
+
+function rr_reap() {
+    local md5=$(echo "$@"|md5sum|awk '{print$1}')
+    printf "\r"; rr_printf 1 "Reaping ${md5} [$(echo $@|awk '{print$1}')]"
+    local cache=${RR_DATA}/db/${md5}
+    mkdir -p ${cache}
+    $@ > ${cache}/stdout 2>${cache}/stderr
+    echo "$@" > ${cache}/cmd
+    local e=$?
+    printf $e > ${cache}/exit
+
+    echo "${md5} $@" >> ${RR_CMDS}
+
+    if [ "$1" == "dmidecode" ]; then
+        cd ${RR_DATA}
+        ln -sf db/${md5}/stdout ${RR_DMIDATA}
+        cd - >/dev/null
+    fi
+    return $e
+}
+
+function rr_reap_data() {
+    rr_printf 0 "Reaping system ${FQDN}" ...
+    mkdir -p ${RR_DATA}
+
+    #. SysInfo
+    set -e
+    rr_reap dmidecode
+    RR_KERNEL=$(uname -s | tr '[:upper:]' '[:lower:]')
+    RR_KERNEL_VERSION=$(uname -r)
+    local sysinfo_conf=sysinfo.d/${RR_KERNEL}
+    set +e
+    source ${sysinfo_conf}
+    local sysinfo_cached=${RR_DATA}/sysinfo.sh
+    touch ${sysinfo_cached}
+    for func in $(declare -F | awk '/sc_sysinfo_/{print $3}'); do
+        name="${func/sc_sysinfo_/}"
+        value="$(eval $func)"
+        printf "RR_SYSINFO[%s]='%s'\n" "$name" "$value" >> ${sysinfo_cached}
+    done
+    source ${sysinfo_cached}
+    export RR_SYSINFO
+
+    cd /
+    rr_reap tar cf ${RR_DATA}/etc.tar etc/
+    rr_reap tar cf ${RR_DATA}/boot.tar boot/grub
+    rr_reap tar cf ${RR_DATA}/proc.tar --exclude proc/kcore proc
+
+    rr_proc_self_maps=${RR_DATA}/${RR_PROC_SELF_MAPS}
+    cat /proc/self/maps > ${rr_proc_self_maps}
+    for i in {1..100}; do
+        echo "### $i ###"
+        cat /proc/self/maps
+    done >> ${rr_proc_self_maps}
+
+    #echo -e "GET HTTP/1.0 /\r\n\r\n" |nc  www.securusglobal.com 80
+    #echo -e "GET HTTP/1.1 /\r\n\r\n" |nc  www.securusglobal.com 80
+
+    rr_reap df -Ph
+    rr_reap mount
+    rr_reap uname -a
+    rr_reap cat /etc/fstab
+    rr_reap cat /etc/mtab
+    rr_reap cat /proc/mdstat
+    rr_reap cat /proc/self/maps
+    rr_reap cat /proc/cpuinfo
+    rr_reap cat /proc/meminfo
+    rr_reap ls -lR /dev
+    rr_reap ls -lR /sys
+    rr_reap ls -lR /opt
+    rr_reap ls -lR /srv
+    rr_reap ls -lR /proc
+    rr_reap ls -lR /var
+    rr_reap ls -lR /var/opt
+    rr_reap ls -lR /var/log
+    rr_reap ls -lR /usr/local
+
+    rr_reap ls -lR /tmp
+    rr_reap ls -lR /tmp/
+    rr_reap ls -lR /var/tmp
+    rr_reap ls -lR /var/tmp/
+
+
+    #. FIXME: Fix sysinfo (bash->sh), then this to use that data
+    if which rpm > /dev/null 2>&1; then
+        rr_reap rpm -qa
+    elif which pacman > /dev/null 2>&1; then
+        rr_reap pacman -Q
+    fi
+
+    rr_reap ifconfig -a
+
+    #TODO: all paritions from fstab
+    #. World-writeable directories (that don't have the sticky bit set)
+    rr_reap awk '$1~/^\/dev\//{print$2}' /proc/mounts
+    MP=$(awk '$1~/^\/dev\//{print$2}' /proc/mounts)
+
+    for mp in ${MP}; do
+        rr_reap find ${mp} -xdev -type d \( -perm -0002 -a -not -perm -1000 \) -print
+        #. World-writeable files
+        rr_reap find ${mp} -xdev -type f \( -perm -0002 \) -print
+        #. SUID executables
+        rr_reap find ${mp} -xdev -type f \( -perm -04000 -o -perm -02000 \) -print
+        #. Orphans
+        rr_reap find ${mp} -xdev -type f -nouser -o -nogroup -print
+        #. Boot options
+    done
+
+    rr_reap cat /proc/cmdline
+
+    local d
+    local fmt
+    local dots
+
+    declare -a dirz
+    dirz=( / /root /root/.ssh /etc /lib /home /tmp /var /var/log /var/tmp /usr /opt /var/opt /srv)
+    for d in ${dirz[@]}; do
+        for fmt in '%g' '%G' '%u' '%U' '%m' '%a' '%04a' '%F'; do
+            for dots in '' '/.' '/..'; do
+                rr_reap stat --printf ${fmt} ${d}${dots}
+            done
+        done
+    done
+
+    rr_reap export
+    rr_reap set
+    rr_reap env
+    rr_reap declare
+    rr_reap umask
+    rr_reap ulimit -a
+    rr_reap ulimit -aS
+    rr_reap ulimit -aH
+
+    rr_reap pvscan
+    rr_reap vgscan
+    rr_reap lvscan
+    rr_reap cat /proc/mdadm
+
+    rr_reap iptables -nvL
+
+    rr_reap pwck
+    rr_reap getent passwd
+    rr_reap getent shadow
+    rr_reap getent group
+    rr_reap getent services
+    rr_reap getent protocols
+
+    for username in $(getent passwd|awk -F: '$7!~/false/{print$1}'); do
+        rr_reap crontab -l -u ${username}
+        rr_reap sudo -U ${username} -l
+        rr_reap su - ${username} -c 'ulimit -a'
+        rr_reap su - ${username} -c 'umask'
+        home=$(getent passwd|awk -F: '$6~/'${username}'/{print$6}')
+        if [ -d ${home} ]; then
+            rr_reap ls -laR ${home}/
+            if [ -d ${home}/.ssh ]; then
+                cd ${home}/
+                tar czf ${RR_DATA}/home-${username}-ssh.tar.gz .ssh
+                cd - >/dev/null
+            fi
+            rr_reap ls -ld ${home}/.*
+            rr_reap find ${home} -xdev -type f \( -perm -0002 \) -print
+        fi
+    done
+
+    declare -a filez
+    filez=(
+        /etc/host*.* /etc/shosts*.*
+        /etc/resolv.conf /etc/*tab /etc/{at,cron}.{allow,deny}
+        /etc/group* /etc/passwd* /etc/shadow* /etc/gshadow* /etc/securetty
+        /boot/grub/grub.conf
+    )
+    for f in ${filez[@]}; do
+        rr_reap stat ${f}
+        rr_reap stat -t ${f}
+        for fmt in '%g' '%G' '%u' '%U' '%a' '%F'; do
+            rr_reap stat --printf ${fmt} ${f}
+        done
+    done
+
+    for ding in ${RR_LOG_BELLS[@]}; do
+        rr_reap grep ${RR_OPTS_GREP?} ${ding} /var/log/
+    done
+
+    for dong in ${RR_LOL_BELLS[@]}; do
+        rr_reap grep ${RR_OPTS_GREP?} ${dong} /etc/
+    done
+
+    for f in /root/.ssh/*; do
+        for fmt in '%g' '%G' '%u' '%U' '%m' '%a'; do
+            rr_reap stat --printf ${fmt} ${f}
+            rr_reap stat --printf \'${fmt}\' ${f}
+            rr_reap stat --printf \"${fmt}\" ${f}
+        done
+    done
+    unset f d fmt dots
+
+    rr_reap lsmod
+
+    rr_reap pstree -puUc
+    rr_reap pstree -puUl
+    rr_reap cat /proc/sys/kernel/randomize_va_space
+    case ${RR_SYSINFO[osbreed]} in
+        RedHat) rr_reap chkconfig --list;;
+    esac
+
+    rr_reap cat /etc/inittab
+
+    rr_reap netstat -lnpAinet
+    rr_reap cat /etc/hosts.deny
+    rr_reap cat /etc/hosts.allow
+    rr_reap sysctl -a
+    rr_echo_fail 0
+
+
+
+    #. Zip it up
+    rr_printf 1 "Packaging ${FQDN}.tar.gz" ...
+    cd ${RR_DATA}/..
+
+    rr_printf 2 "Setting file permissions"
+    find . -type f -exec chmod 644 {} \;
+    rr_echo_fail $e
+
+    rr_printf 2 "Setting directory permissions"
+    find . -type d -exec chmod 755 {} \;
+    rr_echo_fail $e
+
+    rr_printf 2 "Compressing"
+    tar czf ${TGZ_D}/${FQDN}.tar.gz ${FQDN}
+    rr_echo_fail $e
+
+    rr_printf 2 "Removing cache data"
+    rm -rf ${RR_DATA}
+    rr_echo_fail $e
+
+    rr_printf 2 "Packaging of ${FQDN}.tar.gz complete"
+    rr_echo_info 0 "$(du -sh ${TGZ_D}/${FQDN}.tar.gz|awk '{print$1}')"
+
+    echo
+}
+
+function rr_service() {
+    e=1
+    state=unknown
+    service=$1
+    switch=$2
+
+    case ${RR_SYSINFO[osbreed]} in
+        Debian)
+        ;;
+
+        RedHat)
+            chkconfig=($(rr_rape chkconfig --list|grep -E "^${service}"))
+            if [ ${#chkconfig[@]} -eq 8 ]; then
+                state=${chkconfig[1+${RR_SYSINFO[osrlcurrent]}]/*:/}
+            fi
+        ;;
+    esac
+    echo $state
+}
+
+e=0
+if [ ${UID} -eq 0 ]; then
+    unalias mv cp rm >/dev/null 2>&1
+    rm -rf /tmp/reaper
+    set -o noclobber
+    rr_reap_data
+else
+    echo "Who do you think you are? root?"
+    e=1
+fi
+
+exit $e

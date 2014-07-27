@@ -1,0 +1,20 @@
+include make.d/Makefile.header
+
+AIS_NAME       := isic
+AIS_VERSION    := 0.07
+AIS_BIN        := esic icmpsic icmpsic6 isic isic6 multisic tcpsic tcpsic6 udpsic udpsic6
+AIS_CHECK      := README
+
+AIS_CONFIGURE_OPTS   := "--includedir=/usr/include/netinet"
+AIS_PREBUILD_TARGETS := /tmp/configure.backup /tmp/isic.h.backup
+
+include make.d/Makefile.footer
+
+################################################################################
+#. Patching via AIS_PREBUILD_TARGETS
+/tmp/configure.backup: build/$(AIS_NAME)-$(AIS_VERSION)/$(AIS_SRC_SUBDIR)/configure
+	sed -i.backup -e 's|$$PREFIX/lib/libnet.a|/usr/lib/libnet.a|g' $<
+	mv $<.backup $@
+/tmp/isic.h.backup: build/$(AIS_NAME)-$(AIS_VERSION)/$(AIS_SRC_SUBDIR)/isic.h
+	sed -i.backup -e '/^#include <libnet.h>/a#include <netinet/tcp.h>\n#include <netinet/udp.h>' $<
+	mv $<.backup $@

@@ -1,0 +1,163 @@
+#!/usr/bin/env python
+
+class Blob:
+    def __init__(self, token, indexes):
+        self._token = token
+        self._waves = len(indexes)
+
+        self._wavelength = len(token)
+
+        spacing = [ indexes[_] - indexes[_-1] for _ in range(1, len(indexes)) ]
+        self._score  = pow(spacing.count(self._wavelength), self._wavelength)
+
+        self._range = (indexes[0], indexes[-1] + self._wavelength)
+
+    def score(self):
+        return self._score
+
+    def start(self):
+        return self._range[0]
+
+    def end(self):
+        return self._range[1]
+
+    def fatten(self):
+        self._waves += 1
+
+    def token(self):
+        return self._token
+
+    def __ne__(self, blob):
+        return self._token != blob.token()
+
+    def __eq__(self, blob):
+        return self._token == blob.token()
+
+    def __repr__(self):
+        rep = None
+        if self._waves > 1:
+            rep = "'%s' * %d" % (self._token, self._waves)
+        else:
+            rep = "'%s'" % self._token
+        return rep
+
+class Chain:
+    def __init__(self, raw):
+        self._raw = raw
+        self._blobs = []
+
+        self._z = {}
+        def _index(sss, j):
+            sofar = self._z.get(sss, list())
+            if sofar:
+                contender = sofar[-1]
+                if j - contender[-1] == len(sss):
+                    self._z[sss][-1].append(j)
+                else:
+                    self._z[sss].append([ j ])
+            else:
+                self._z[sss] = [[ j ]]
+
+        import time
+        print 'stage 1...', time.time()
+        shortest = 2
+        for i in range(shortest, len(s) + 1):
+            ss = s[:i]
+            _index(ss, 0)
+            for j in range(1, len(ss) + 1 - shortest):
+                sss = ss[j:]
+                _index(sss, j)
+
+        print 'stage 2...', time.time()
+        win = [None for _ in s]
+        for ss in self._z:
+            for blobData in self._z[ss]:
+                b = Blob(ss, blobData)
+                if b.score() > 0:
+                    if win[b.start()]:
+                        contender = win[b.start()]
+                        if b.score() > contender.score():
+                            win[b.start()] = b
+                    else:
+                        win[b.start()] = b
+
+        print 'stage 3...', time.time()
+        nextIndex = 0
+        self._cacheData = []
+        self._cacheIndex = -1
+        while nextIndex != len(s):
+            blob = win[nextIndex]
+            if blob:
+                self._cacheFlush()
+                self._blobs.append(blob)
+                nextIndex = blob.end()
+            else:
+                char = s[nextIndex]
+                self._cacheUpdate(char, nextIndex)
+                nextIndex += 1
+
+        self._cacheFlush()
+
+    def _cacheUpdate(self, char, index):
+        if self._cacheDirty():
+            if self._cacheData[-1] != char:
+                if self._cacheUnique():
+                    self._cacheFlush()
+                    self._cacheData = [ char ]
+                    self._cacheIndex = index
+                else:
+                    self._cacheData.append(char)
+            else:
+                if self._cacheUnique():
+                    if char == self._cacheData[-1]:
+                        self._cacheData.append(char)
+                    else:
+                        charLast = self._cacheData.pop()
+                        self._cacheFlush()
+                        self._cacheData = [ charLast, char ]
+                        self._cacheIndex = index - 1
+                else:
+                    if char == self._cacheData[-1]:
+                        charLast = self._cacheData.pop()
+                        self._cacheFlush()
+                        self._cacheData = [ charLast, char ]
+                        self._cacheIndex = index - 1
+                    else:
+                        self._cacheData.append(char)
+        else:
+            self._cacheIndex = index
+            self._cacheData.append(char)
+
+    def _cacheUnique(self):
+        return len(self._cacheData) > 1 and len(set(self._cacheData)) == 1
+
+    def _cacheDirty(self):
+        return len(self._cacheData) > 0
+
+    def _cacheFlush(self):
+        if self._cacheDirty():
+            if len(set(self._cacheData)) == 1 and len(self._cacheData) > 4:
+                b = Blob(
+                    self._cacheData[0],
+                    [self._cacheIndex + _ for _ in range(len(self._cacheData))]
+                )
+            else:
+                b = Blob(
+                    ''.join(self._cacheData),
+                    [self._cacheIndex]
+                )
+
+            self._blobs.append(b)
+            self._cacheIndex = -1
+            self._cacheData = []
+
+    def __repr__(self):
+        return ' + '.join([repr(b) for b in self._blobs])
+
+
+import sys
+if __name__ == '__main__':
+    if len(sys.argv) > 0:
+        s = ' '.join(sys.argv[1:])
+        chain = Chain(s)
+        print chain

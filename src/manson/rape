@@ -1,0 +1,163 @@
+#!/bin/bash
+#. ******* coding:utf-8 AUTOHEADER START v1.3 *******
+#. vim: fileencoding=utf-8 sw=4 ts=4 et
+#.
+#. © 2007-2011 Nima Talebi <nima at autonomy dot net dot au>
+#.                         <nt at securusglobal dot com dot au>
+#.
+#. $HeadURL::                                                                  $
+#. $LastChangedBy::                                                            $
+#. $LastChangedDate::                                                          $
+#. $LastChangedRevision::                                                      $
+#. $                                                                           $
+#. $AutoHeaderSerial::20110315                                                 $
+#.
+#. This file is part of the Insecurity Suite.
+#.
+#.     Insecurity is free software: you can redistribute it and/or modify
+#.     it under the terms of the GNU General Public License as published by
+#.     the Free Software Foundation, either version 3 of the License, or
+#.     (at your option) any later version.
+#.
+#.     Insecurity is distributed in the hope that it will be useful,
+#.     but WITHOUT ANY WARRANTY; without even the implied warranty of
+#.     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#.     GNU General Public License for more details.
+#.
+#.     You should have received a copy of the GNU General Public License
+#.     along with Insecurity.  If not, see <http://www.gnu.org/licenses/>.
+#.
+#. THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR IMPLIED
+#. WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
+#. MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO
+#. EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
+#. INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+#. LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+#. PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+#. LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+#. OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+#. ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#.
+#. ADAPTED M. STONE & T. PARKER DISCLAIMER: THIS SOFTWARE COULD RESULT IN INJURY
+#. AND/OR DEATH, AND AS SUCH, IT SHOULD NOT BE BUILT, INSTALLED OR USED BY ANYONE.
+#. ******* AUTOHEADER END v1.3 *******
+
+#. TODO:
+#. TODO:  * Write a psuedo rape-shell, with a list of all reaped commands on request
+#. TODO:    * rape services that are supposed to be ON but OFF in chkconf
+#. TODO:    * rape services that are supposed to be OFF but ON in chkconf
+#. TODO:    * rape services that are inconsistant with chkconf
+#. TODO:    * For RHEL:
+#. TODO:      * ON: auditd, crond, cpuspeed, iptables, irqbalance, messagebug,
+#. TODO:        NetworkManagerDispatcher, restorecond, sshd, syslog, sysstat
+#. TODO:      * OFF: smb nfs portmapper rpc nfslock autofs ypbind ypserv yppasswdd
+#. TODO:        portmap netfs cupsd apache snmpd named postgresql mysqld squid kudzu
+#. TODO:  * rape of filetype stat on /var/tmp - is it a symbolic link or dir, if dir,
+#. TODO:    is it partitioned away from /var.
+#. TODO:  * Do proper permissions check by ANDing a mask and actual permission, and
+#. TODO:    test for zero, instead of checking agains an explicit mask:
+#. TODO:        Say perm=0500, all we care about is that user and group have no
+#. TODO:        permissions, so:
+#. TODO:            test $(printf "%o" $[${perm}&0077]) -eq 0
+#. TODO: * Automated /etc/ssh/sshd_config check
+#. TODO: * Automated /etc/ssh/ssh_config check
+
+DATA=
+FQDN=
+################################################################################
+set +o noclobber
+e=1
+if [ $# -eq 1 ]; then
+    if [ -e $1 ]; then
+        cd $(dirname $0)
+        cwd=$(pwd)
+        source manson.conf
+
+        set -e
+        basename=$(basename $1)
+        FQDN=$(echo ${basename}|sed -e 's/.tar.gz//')
+        rr_printf 0 "Exploring ${FQDN}..." ...
+        chrooted=/var/tmp/${FQDN}
+        if [ ! -e "${chrooted}" ]; then
+            rr_printf 1 "Expanding ${basename}..."
+            cd /var/tmp && tar xzf $1
+            rr_echo_fail $?
+
+            #. Prepare for the chroot...
+            rr_printf 1 "Preparing chrooted environment" ...
+            cd ${chrooted}
+            declare -a FS
+            for d in *.tar; do
+                rr_printf 2 "Expanding snapshot ${d/.tar/}..."
+                FS=( ${F[@]} ${d/.tar/.snapshot} )
+                tar xf $d && mv ${d/.tar/} ${d/.tar/.snapshot} && rm -f $d
+                rr_echo_fail $?
+            done
+            rr_printf 2 "Unsecuring snapshot proc..."
+            find proc.snapshot -type d -exec chmod 755 {} \;
+            rr_echo_fail $?
+
+            rr_printf 1 "Securing data..."
+            chmod 700 ${chrooted}
+            rr_echo_fail $?
+
+            rr_printf 1 "Installing configuration files..."
+            mkdir -p ${chrooted}/root
+            cp ${cwd}/manson.conf ${chrooted}/root/
+            cat <<EOF > ${chrooted}/root/.bashrc
+export DATA=${DATA}
+export FQDN=${FQDN}
+export FS="${FS[@]}"
+
+source ~/manson.conf
+
+declare -A RR_SYSINFO
+$(cat ${chrooted}/sysinfo.sh)
+
+EOF
+            cat ${cwd}/manson.bashrc >> ${chrooted}/root/.bashrc
+            rr_echo_fail $?
+        fi
+
+
+        rr_printf 1 "Initiating mounts" ...
+        for d in dev bin lib usr proc; do
+            rr_printf 2 "Mounting $d..."
+            mkdir -p ${chrooted}/$d
+            sudo mount -o bind /$d ${chrooted}/$d
+            rr_echo_fail $?
+        done
+        #rsync -qa /bin/ ${chrooted}/bin/
+        #for i in $(ldd /bin/bash); do
+        #    echo $i|awk '$0~/^\/lib/{printf"cp -f %s %s\n",$0,"'${chrooted}/lib/'"}';
+        #done | bash
+
+        rr_printf 0 "Chrooting into rape-shell" ...
+        set +e
+        sudo chroot ${chrooted} /bin/bash
+        sync
+        sleep 1
+
+        rr_printf 0 "Cleaning up" ...
+        cd /
+        for d in dev bin lib usr proc; do
+            rr_printf 1 "Unmounting bind-mounts"
+            sudo umount ${chrooted}/$d
+            e=$?
+            while [ $e -ne 0 ]; do
+                sleep 1
+                sudo umount ${chrooted}/$d
+                e=$?
+                printf '.'
+            done
+            rr_echo_fail $e
+        done
+        rr_printf 1 "Removing psuedo-shell filez..."
+        find ${chrooted} -depth -xdev -maxdepth 1 -exec rm -rf {} \;
+        rr_echo_fail $?
+    fi
+else
+    printf "Usage: %s <data>.(<tar.gz>|<tar>)\n" $(basename $0)
+fi
+
+exit $?

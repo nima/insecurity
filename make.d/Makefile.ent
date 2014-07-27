@@ -1,0 +1,7 @@
+include make.d/Makefile.header
+
+AIS_NAME       := ent
+AIS_VERSION    := 2008.01.28
+AIS_CHECK      := ent.html
+
+include make.d/Makefile.footer

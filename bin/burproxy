@@ -1,0 +1,30 @@
+#!/bin/bash
+#cat << EOF > /etc/udev/rules.d/80-usbmouse.rules
+#ACTION=="add",    SUBSYSTEM=="input", ENV{ID_CLASS}="mouse", RUN+="/home/rasputin/bin/lox off"
+#ACTION=="remove", SUBSYSTEM=="input", ENV{ID_CLASS}="mouse", RUN+="/home/rasputin/bin/lox on"
+#EOF
+#udevadm control --log-priority=0
+#udevadm control reload_rules
+
+case $1 in
+    on)
+        echo 1 > /proc/sys/net/ipv4/ip_forward
+
+        ifconfig eth1 10.9.8.13 netmask 255.255.255.0
+
+        iptables -t nat -F
+        iptables -t nat -A PREROUTING -i eth1 -p tcp --dport 80 -j REDIRECT --to-port 8080
+        iptables -t nat -A PREROUTING -i eth1 -p tcp --dport 443 -j REDIRECT --to-port 8080
+        iptables -t mangle -F
+        iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
+    ;;
+
+    off)
+        iptables -t nat -F
+        iptables -t mangle -F
+
+        ip address flush dev eth1 2>/dev/null
+
+        echo 0 > /proc/sys/net/ipv4/ip_forward
+    ;;
+esac

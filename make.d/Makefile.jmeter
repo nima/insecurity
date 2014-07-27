@@ -1,0 +1,10 @@
+include make.d/Makefile.header
+
+AIS_NAME    := jakarta-jmeter
+AIS_VERSION := 2.4
+AIS_CHECK   := README
+AIS_BIN     := jmeter
+AIS_CLASS   := JAVA
+AID_WRAPPER := 1
+
+include make.d/Makefile.footer

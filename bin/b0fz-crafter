@@ -1,0 +1,143 @@
+#!/usr/bin/env python2.7
+'''
+Author  : Nima Talebi <me at nima dot id dot au>
+License : GPLv2
+Date    : 2010-04-24
+Version : 0.2
+'''
+
+import getopt, sys, os
+INTERACTIVE = os.isatty(sys.stdin.fileno())
+
+OPTIONS = {
+    'h'  : 'help',
+    'b:' : 'ebp',
+    'i:' : 'eip',
+    'J:' : 'junk',
+    'r:' : 'raw',
+}
+
+BASE = {
+    'c' : 0,
+    'b' : 2,
+    'd' : 10,
+    'x' : 16,
+}
+
+INTERACTIVE = os.isatty(sys.stdin.fileno())
+
+def usage():
+    cmd = os.path.basename(sys.argv[0])
+    print "Usage:"
+    print "    %s <options> <file1> [<file2> [...]]" % cmd
+    print "    %s <options> < <file>" % cmd
+    print "    <cmd> | %s <options>" % cmd
+    print "Options:"
+    shopt = OPTIONS.keys()
+    for o in shopt:
+        print "    -%s|--%s" % (o[0], OPTIONS[o]),
+        print len(o) == 2 and '<arg>' or ''
+
+def process(token, base='c', repeat=1, width=1):
+    '''
+    input:  x90807060
+    output: \x60\x70\x80\x90
+
+    input:  fred
+    output: fred
+
+    input:  15
+    output: \x0F
+    '''
+    if token[0] in BASE.keys():
+        base, token = token[0], token[1:]
+
+    if token.count(':') == 1:
+        token, repeat = token.split(':', 2)
+        repeat = int(repeat)
+
+    r = None
+    if base == 'x':
+        width = len(token)
+        if width <= 2:
+            token = '%02s' % token
+            width = 1
+        elif width <= 8:
+            token = '%08s' % token
+            width = 4
+        else:
+            raise "WTF?"
+
+        i = 0
+        data = []
+        while i < width:
+            s = token[i*2:i*2+2]
+            i += 1
+            data.append(chr(int(s, BASE[base])) * repeat)
+        data.reverse()
+        r = ''.join(data)
+    #elif base != 'c':
+    #else:
+    #    return token * process(repeat, 'd', int)
+    return r
+
+#if len(sys.argv) > 1:
+#    data = []
+#    for token in sys.argv[1:]:
+#        data.append(process(token))
+#
+#    sys.stdout.write(''.join(data))
+#
+
+def main():
+    e = 0
+
+    opts = None
+    args = list()
+    try:
+        shopt = OPTIONS.keys()
+        opts, args = getopt.getopt(
+            sys.argv[1:],
+            ''.join(shopt),
+            [OPTIONS[o] for o in shopt]
+        )
+    except getopt.GetoptError, err:
+        print str(err)
+        usage()
+        e = 1
+
+    fH = sys.stdout
+    if len(args) > 1 or opts is None:
+        e = 1
+    elif len(args) == 1:
+        fH = open(args[0], 'w')
+
+    if e == 0:
+        assist = False
+        ebp = False
+        eip = False
+        junk = []
+        raw = []
+        for o, a in opts:
+            if o in ('h', '--help'):
+                assist = True
+            elif o in ('-b', '--ebp'):
+                ebp = process('x%s' % a, width=4)
+            elif o in ('-i', '--eip'):
+                eip = process('x%s' % a, width=4)
+            elif o in ('-J', '--junk'):
+                junk = process('x%s' % a)
+            elif o in ('-r', '--raw'):
+                raw.append(process(a))
+
+        if ebp and eip:
+            fH.write('%s%s%s' % (junk, ebp, eip))
+        elif raw:
+            fH.write(''.join(raw))
+        else:
+            e = 1
+    if e:
+        usage()
+
+if __name__ == '__main__':
+    main()

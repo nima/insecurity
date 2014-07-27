@@ -1,0 +1,26 @@
+#!/bin/bash
+function filelist() {
+    wget -rR js,css,jpg,png,gif -np -nd --spider $1 2>&1\
+        | awk -F '[\t ]+' '$3~/http[s]?:/{print $3}'
+}
+
+function dirlist() {
+    FILES=$(filelist $1)
+    DIRS=$(
+        for file in ${FILES}; do
+            dirname ${file};
+        done|sort -u|sed -e "s|^http[s]\?://$1||"|grep -vE '^(http[s]?:)$'
+    )
+
+    for dir in ${DIRS}; do
+        echo ${dir}
+        pdir=${dir}
+        while pdir=$(dirname $pdir); do
+            echo $pdir
+            [ $pdir != '/' ] || break
+        done
+    done|sort -u
+}
+
+DIRS=$(dirlist $1)
+for dir in ${DIRS}; do echo ${dir}; done

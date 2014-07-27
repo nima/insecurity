@@ -1,0 +1,13 @@
+#!/bin/bash
+e=0
+if [ -d .git ]; then
+    cd .git
+    touch git-daemon-export-ok
+    git daemon --base-path=`pwd`
+    e=$?
+else
+    printf "Error: This is not a git repository (could not stat \`.git')"
+    e=1
+fi
+
+exit $e

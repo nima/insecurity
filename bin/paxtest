@@ -1,0 +1,53 @@
+#!/bin/sh
+LOG=/var/tmp/paxtest.log
+cd /opt/bin
+
+if [ $# -eq 1 ]; then
+	if [ "$1" = "kiddie" ]
+	then
+		PAXTEST_MODE=0
+	elif [ "$1" = "blackhat" ]
+	then
+		PAXTEST_MODE=1
+	else
+		echo "usage: paxtest [kiddie|blackhat]"
+		exit 1
+	fi
+else
+	echo "usage: paxtest [kiddie|blackhat]"
+	exit 1
+fi
+
+export PAXTEST_MODE
+
+if [ "${LD_LIBRARY_PATH}" = "" ]; then
+	LD_LIBRARY_PATH=/opt/autonomy/insecurity/lib
+else
+	LD_LIBRARY_PATH=${LD_LIBRARY_PATH}:/opt/autonomy/insecurity/lib
+fi
+export LD_LIBRARY_PATH
+echo $LD_LIBRARY_PATH
+
+cat <<__end__ | tee ${LOG}
+PaXtest - Copyright(c) 2003,2004 by Peter Busser <peter@adamantix.org>
+Released under the GNU Public Licence version 2 or later
+
+__end__
+
+echo "Mode: $1" >>${LOG}
+uname -a >>${LOG}
+echo >>${LOG}
+
+echo "Writing output to ${LOG}"
+echo 'It may take a while for the tests to complete'
+
+for i in anonmap execbss execdata execheap execstack shlibbss shlibdata mprotanon mprotbss mprotdata mprotheap mprotstack mprotshbss mprotshdata writetext randamap randheap1 randheap2 randmain1 randmain2 randshlib randstack1 randstack2 rettofunc1 rettofunc2 rettofunc1x rettofunc2x
+do
+	./$i
+done >>${LOG} 2>&1
+
+echo "Test results:"
+cat ${LOG}
+
+echo
+

@@ -1,0 +1,12 @@
+#. FIXME - This will not do anything, this is one of those bundles that
+#, needs to be copied completely into /opt, and have a shellscript
+#. wrapper for setting CWD etc.
+
+include make.d/Makefile.header
+
+AIS_NAME              := httprint
+AIS_VERSION           := 0.301
+AIS_CHECK             := readme.txt
+AIS_BIN               :=
+
+include make.d/Makefile.footer

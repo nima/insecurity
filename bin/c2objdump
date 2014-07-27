@@ -1,0 +1,9 @@
+#!/bin/bash
+if [ $# -eq 1 ] && [ $1 != ${1/.c/} ] ; then
+    gcc -nostdlib -e main -g $1 -o ${1/.c/} \
+        && objdump -Mintel -d ${1/.c/} \
+        && objdump -Matt   -d ${1/.c/} \
+        && rm -f ${1/.c/}
+else
+    printf "Usage: %s <src.c>\n" $(basename $0)
+fi

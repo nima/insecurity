@@ -1,0 +1,37 @@
+include make.d/Makefile.header
+
+AIS_NAME              := t00l
+AIS_VERSION           := 6.6.6
+#AIS_CONFIGURE_OPTS    := --quiet
+#AIS_MAKEFILE          := special-target
+#AIS_MAKE_OPTS         := --no-print-directory
+#AIS_EXPANDED          := t00-lame #. Some tarballs expand into an unexpected directory name
+#AIS_CHECK             := README
+#AIS_SRC_SUBDIR        := src
+#AIS_BIN               := t00l-kill t00l-resurrect
+#AIS_BIN_SUBDIR        := bin
+#AIS_SO                := libdasm.so
+#AIS_SO_SUBDIR         := lib
+#AIS_H                 := libdasm.h
+#AIS_H_SUBDIR          := include
+#AIS_PREBUILD_TARGETS  := foo bar (see patching below)
+#AIS_POSTBUILD_TARGETS := foo bar (see patching below)
+#AIS_SCM               := git
+#AIS_SCM_URI           := git://git.autonomy.net.au/atomicles
+#AID_WRAPPER           := 0
+
+include make.d/Makefile.footer
+
+################################################################################
+#. Patching via AIS_PREBUILD_TARGETS
+#foo:
+#	stuff
+#bar:
+#	more-stuff
+
+#. Extras via AIS_POSTBUILD_TARGETS
+#libdasm32.so:
+#	@cd build/$(AIS_NAME)-$(AIS_VERSION) && $(CC) $(CFLAGS) -m32 -shared -o $@ libdasm.c
+#
+#libdasm64.so:
+#	@cd build/$(AIS_NAME)-$(AIS_VERSION) && $(CC) $(CFLAGS) -m64 -shared -o $@ libdasm.c

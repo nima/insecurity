@@ -1,0 +1,10 @@
+include make.d/Makefile.header
+
+AIS_NAME    := pkcrack
+AIS_VERSION := 1.2.2
+AIS_BIN     := extract findkey makekey pkcrack zipdecrypt
+AIS_CHECK   := doc/README
+AIS_SRC_SUBDIR  := src
+AIS_BIN_SUBDIR  := src
+
+include make.d/Makefile.footer

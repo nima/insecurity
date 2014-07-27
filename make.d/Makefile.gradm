@@ -1,0 +1,9 @@
+include make.d/Makefile.header
+
+AIS_NAME       := gradm
+AIS_EXPANDED   := gradm2
+AIS_VERSION    := 2.2.1-201012301333
+AIS_BIN        := gradm gradm_pam grlearn
+AIS_CHECK      := README
+
+include make.d/Makefile.footer

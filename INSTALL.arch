@@ -1,0 +1,23 @@
+#. On arch, install the following packages:
+
+p7zip bc beep bless cvs gdb fcrackzip ettercap dsniff python2 python3 mono openldap
+john jmeter rdesktop ltrace lsof mlocate jython jdk jre nmap ngrep netwatch hping
+indent hexedit geoip openbsd-netcat zip wireshark-gtk whois w3m vim unzip tcsh
+tcpdump svn unrar strace socat net-snmp screen rtorrent rhino pwgen macchanger
+arpwatch dosfstools ntfs-3g ntfsprogs dnstracer libtool-multilib upx
+mc multitail scribes psutils cscope automake autoconf
+
+gcc-multilib binutils-multilib gcc-libs-multilib libmysqlclient libfbclient
+
+xorg-font-util xorg-fonts-100dpi xorg-fonts-75dpi xorg-fonts-alias
+xorg-fonts-cyrillic xorg-fonts-encodings xorg-fonts-misc xorg-fonts-type1
+xorg-server xorg-xset xorg-xrandr xorg-xinit
+xf86-video-fbdev xf86-video-vesa xf86-video-intel
+
+libssh libssl
+
+hd2u xclip
+
+cd /opt/
+sudo git clone git://github.com/gagern/gnulib.git
+sudo ln -sf /opt/gnulib/gnulib-tool /opt/bin/gnulib-tool
