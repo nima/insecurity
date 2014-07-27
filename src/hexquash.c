@@ -132,8 +132,8 @@ int * makeNCArray(const char * comstr, int comstrlen) {
     int lastchar[256] = {0};
 
     for(i = comstrlen - 1; i >= 0; --i) {
-        ncarray[i] = lastchar[comstr[i]];
-        lastchar[comstr[i]] = i;
+        ncarray[i] = lastchar[(int)comstr[i]];
+        lastchar[(int)comstr[i]] = i;
     }
 
     return ncarray;
@@ -183,7 +183,7 @@ vector<pattern> compress(const char * comstr) {
     }
 
     int nreps = repsarray.size();
-    for(int i = 0; i < repsarray.size(); ++i) {
+    for(unsigned int i = 0; i < repsarray.size(); ++i) {
         printf("Matched %i patterns at char %i:", repsarray[i].reps, repsarray[i].fchar);
         printsubstr(comstr, repsarray[i].fchar, repsarray[i].fchar + repsarray[i].patlen*repsarray[i].reps-1);
         printf("\n");
@@ -215,10 +215,9 @@ void printpats(const char * comstr, vector<pattern> bestpats) {
         printf("'+");
     }
 
-    int i;
     int cplchar;
     int len = strlen(comstr);
-    for(i = 0; i < bestpats.size(); ++i) {
+    for(unsigned int i = 0; i < bestpats.size(); ++i) {
         curpat = bestpats[i];
         cplchar = curpat.fchar + curpat.patlen * curpat.reps;
         putchar('\'');
