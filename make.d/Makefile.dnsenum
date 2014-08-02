@@ -1,0 +1,10 @@
+include make.d/Makefile.header
+
+AIS_NAME    := dnsenum
+AIS_VERSION := 1.2.4
+AIS_BIN     := dnsenum.pl
+AIS_CHECK   := README.md
+AIS_SCM     := git
+AIS_SCM_URI := https://github.com/fwaeytens/dnsenum.git
+
+include make.d/Makefile.footer
