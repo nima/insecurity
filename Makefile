@@ -86,7 +86,7 @@ SMOKED += paxctl
 #BAKE   += gradm pax-utils paxtest
 #BREWED += paxit paxtest
 #. Recon
-BAKE   += dnsmap
+BAKE   += dnsmap dnsenum
 BREWED += scrape
 
 #. Document Readers/Manipulators
@@ -121,7 +121,8 @@ LIBS   += libwiretap.so libssl.so libssh.so libpng.so libtiff.so libgif.so
 LIBS   += libncurses.so libxml2.so libcaca.so libsvn_client-1.so #libcucul.so
 LIBS   += libapr-1.so libaprutil-1.so #libfbclient.so
 LIBS   += libmysqlclient.so #libgdk-x11-2.0.so
-LIBS   += libdasm32.so libdasm64.so libgcrypt.so libgsf-1.so libncursesw.so
+LIBS   += libgcrypt.so libgsf-1.so libncursesw.so
+LIBS   += libdasm32.so libdasm64.so
 #LIBS  += lib32-pcre-8.10-3  lib32-dbus-core-1.4.0-2  lib32-glib2-2.26.1-2  lib32-glib-1.2.10-11
 #LIBS  += libafpclient libncp libpg
 
@@ -242,7 +243,7 @@ install: ${PREFIX}/bin ${PREFIX}/share $(foreach c,$(BREWED),${PREFIX}/bin/$c)
 	mkdir -p ${PREFIX}/share
 	rsync -qa share/ ${PREFIX}/share
 	rsync -qa pylib/ ${PREFIX}/pylib
-	sudo /opt/bin/paxit
+	@#sudo /opt/bin/paxit
 ${PREFIX}/bin:; mkdir -p $@
 ${PREFIX}/share:; mkdir -p $@
 
