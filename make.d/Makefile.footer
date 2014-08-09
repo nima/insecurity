@@ -75,6 +75,8 @@ endif
 WORKDIR := build/$(AIS_NAME)-$(AIS_VERSION)/$(AIS_SRC_SUBDIR)
 $(AIS_BIN_SOURCE) $(AIS_SO_SOURCE):
 	@[ ! -f $(WORKDIR)/configure ]\
+		|| ( cd $(WORKDIR) && autoreconf -i ) > /dev/null 2>&1;
+	@[ ! -f $(WORKDIR)/configure ]\
 		|| ( cd $(WORKDIR) && ./configure $(AIS_CONFIGURE_OPTS) ) > /dev/null 2>&1;
 	@[ ! -f $(WORKDIR)/$(AIS_MAKEFILE) ]\
 		|| ( cd $(WORKDIR) && $(MAKE) -s $(AIS_MAKE_OPTS) ) > /dev/null 2>&1;

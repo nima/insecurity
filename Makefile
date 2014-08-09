@@ -5,7 +5,7 @@ LIBS   := #. Shared objects that that are expected to exist
 HEADS  := #. Header files
 DATA   := #. Data files
 
-HEADS  += libdasm.h gcrypt.h
+HEADS  += libdasm.h gcrypt.h oniguruma.h
 DATA   += GeoLiteCity.dat
 
 #-------------------------------------------------------------------------------
@@ -28,7 +28,7 @@ SMOKED += nc scapy socat arping tcpspy
 #BREWED += connect
 #. Web Scanner/Proxy/Utilities
 BAKE   += belch #. Non-Free Software
-BAKE   += dirbuster nikto
+BAKE   += dirbuster nikto jq
 BREWED += lbd urlencode
 #. Disassemblers
 SMOKED += idal idaq #. Non-Free
@@ -43,7 +43,7 @@ BAKE   += vbindiff dhex
 BREWED += elf-check bgrep
 #. Compililation
 SMOKED += flex bison yacc ld ldd nm
-SMOKED += gcc g++ javac automake autoconf autoheader
+SMOKED += gcc g++ javac automake autoconf autoheader valgrind
 #. Debuggers
 SMOKED += gdb
 #. Packers
@@ -99,12 +99,12 @@ BREWED += doc2pdf
 SMOKED += awk sed vim fold
 SMOKED += rsync ssh scp telnet openvpn rdesktop
 SMOKED += vmware #. Non-Free Software
-SMOKED += w3m screen tcsh bc sqlite3
+SMOKED += w3m screen bc sqlite3
 SMOKED += pwgen ipcalc
 SMOKED += xdg-open xset beep
 SMOKED += dos2unix pcregrep
 SMOKED += srm wipe top iftop finger scrot
-SMOKED += colordiff transmission-cli nice ionice cowsay ctags
+SMOKED += colordiff aria2c nice ionice cowsay ctags
 SMOKED += mkfs.msdos mkfs.vfat mkfs.ntfs
 BREWED += resync supergenpass
 BREWED += beeping
@@ -123,6 +123,7 @@ LIBS   += libapr-1.so libaprutil-1.so #libfbclient.so
 LIBS   += libmysqlclient.so #libgdk-x11-2.0.so
 LIBS   += libgcrypt.so libgsf-1.so libncursesw.so
 LIBS   += libdasm32.so libdasm64.so
+LIBS   += libonig.so
 #LIBS  += lib32-pcre-8.10-3  lib32-dbus-core-1.4.0-2  lib32-glib2-2.26.1-2  lib32-glib-1.2.10-11
 #LIBS  += libafpclient libncp libpg
 
