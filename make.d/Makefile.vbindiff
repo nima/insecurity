@@ -2,7 +2,7 @@ include make.d/Makefile.header
 
 AIS_NAME             := vbindiff
 AIS_VERSION          := 3.0_beta3
-AIS_CONFIGURE_OPTS   := --quiet
+AIS_CONFIGURE_OPTS   := --includedir=/usr/include/ncurses --quiet
 #AIS_EXPANDED         := t00-lame #. Some tarballs expand into an unexpected directory name
 AIS_CHECK            := README
 #AIS_BIN              := t00l-kill t00l-resurrect
